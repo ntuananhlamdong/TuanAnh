@@ -7,19 +7,18 @@
   <title>Hỗ trợ Nhập liệu Thăm khám - Phát triển Hành vi Nhi khoa</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: { 
             heading: ['Figtree', 'system-ui', 'sans-serif'],
-            body: ['Nunito', 'system-ui', 'sans-serif']
+            body: ['Noto Sans', 'system-ui', 'sans-serif']
           },
           colors: {
             medical: {
@@ -48,6 +47,15 @@
               400: '#A78BFA',
               500: '#8B5CF6',
               600: '#7C3AED'
+            },
+            warning: {
+              50: '#FFFBEB',
+              100: '#FEF3C7',
+              200: '#FDE68A',
+              300: '#FCD34D',
+              500: '#F59E0B',
+              600: '#D97706',
+              700: '#B45309'
             }
           },
           animation: { 
@@ -76,11 +84,14 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: 'Nunito', system-ui, sans-serif;
-      font-size: 14px;
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
       color: #134E4A;
-      background: linear-gradient(135deg, #F0FDFA 0%, #ECFEFF 50%, #D1FAE5 100%);
+      background: linear-gradient(135deg, #ECFEFF 0%, #F0FDFA 48%, #DCFCE7 100%);
       min-height: 100vh;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
     h1, h2, h3, h4, h5, h6 { font-family: 'Figtree', system-ui, sans-serif; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -95,7 +106,7 @@
       appearance: none;
       width: 20px;
       height: 20px;
-      border: 2px solid #99F6E4;
+      border: 1px solid #99F6E4;
       border-radius: 6px;
       background: white;
       cursor: pointer;
@@ -124,7 +135,7 @@
       appearance: none;
       width: 20px;
       height: 20px;
-      border: 2px solid #99F6E4;
+      border: 1px solid #99F6E4;
       border-radius: 50%;
       background: white;
       cursor: pointer;
@@ -162,6 +173,13 @@
       border-radius: 0 0 8px 0;
     }
     .skip-link:focus { top: 0; }
+    #main-content { scroll-margin-top: 180px; }
+    .tab-scroll { scrollbar-width: none; }
+    .tab-scroll::-webkit-scrollbar { display: none; }
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      #main-content { scroll-margin-top: 132px; }
+    }
   </style>
 </head>
 
@@ -170,7 +188,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useCallback, useMemo, memo } = React;
+    const { useState, useCallback, useMemo, memo, useRef } = React;
 
     // SVG ICONS
     const Icons = {
@@ -194,9 +212,31 @@
       download: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>),
       x: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>),
       chevronDown: (<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>),
+      calendar: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5m-15 0A2.25 2.25 0 013 6v12.75A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v2.25z" /></svg>),
+      warning: (<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM10.29 3.86L1.82 18a2.25 2.25 0 001.93 3.375h16.5A2.25 2.25 0 0022.18 18L13.71 3.86a2.25 2.25 0 00-3.42 0z" /></svg>),
+      checkCircle: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
       link: (<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>),
       hospital: (<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>),
     };
+
+    const STORAGE_KEY = 'medical-exam-app-v37-form-data';
+    const DOCX_CDN = 'https://unpkg.com/docx@8.5.0/build/index.umd.js';
+
+    const loadDocx = () => new Promise((resolve, reject) => {
+      if (window.docx) { resolve(window.docx); return; }
+      const existing = document.querySelector(`script[src="${DOCX_CDN}"]`);
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.docx), { once: true });
+        existing.addEventListener('error', reject, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = DOCX_CDN;
+      script.async = true;
+      script.onload = () => resolve(window.docx);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
 
     // CONFIG
     const CONFIG = {
@@ -220,16 +260,38 @@
       mucDoTriTueOptions: ['chậm phát triển', 'ranh giới giữa trung bình thấp và chậm phát triển', 'trung bình thấp', 'trung bình', 'cao'],
       mucDoTriTueWISCOptions: ['chậm phát triển mức độ nhẹ', 'chậm phát triển mức độ trung bình', 'chậm phát triển mức độ nặng', 'ranh giới giữa trung bình thấp và chậm phát triển', 'trung bình thấp', 'trung bình', 'cao'],
       danhGiaKhiTuChoiOptions: ['chơi một mình toàn bộ thời gian', 'chơi một mình thỉnh thoảng có yêu cầu người chăm sóc hỗ trợ', 'chủ động mời người chăm sóc chơi, khoe và gây chú ý với người chăm sóc'],
+      atecMucDoOptions: ['Rất nhẹ', 'Nhẹ', 'Trung bình', 'Nặng', 'Rất nặng'],
+      tienNgonNguExtraOptions: [
+        'Khi trẻ yêu cầu, nên đáp ứng chậm lại một chút để tạo cơ hội cho trẻ chờ và giao tiếp.',
+        'Khi chơi, nên bắt chước trẻ, hạn chế ép trẻ làm theo ý mình, luôn duy trì tầm mắt ngang trẻ.',
+        'Thêm âm thanh vào trò chơi để thu hút và khuyến khích trẻ phát âm.',
+        'Giao tiếp với trẻ bằng câu ngắn, nói chậm, rõ. Khuyến khích trẻ nhìn vào mắt khi tương tác.'
+      ],
+      khamKhacOptions: [
+        'Vệ sinh giấc ngủ: không để trẻ quá no hoặc quá đói trước khi ngủ, duy trì giờ ngủ – thức cố định, tạo thói quen trước ngủ nhẹ nhàng lặp lại, phòng ngủ tối và yên tĩnh, hạn chế màn hình.',
+        'Khi trẻ ăn vạ: phớt lờ hành vi (không nhìn, không chạm, không nói chuyện, không đáp ứng yêu cầu không hợp lý). Cần thống nhất cách xử trí giữa các thành viên trong gia đình, đặc biệt là ông bà.',
+        'Hạn chế thời gian xem TV/điện thoại, tăng thời gian chơi và tương tác trực tiếp với trẻ.',
+        'Phụ huynh có thể tham khảo thêm cách chơi và tương tác với trẻ tại: website a365.vn, kênh YouTube cô Thương Hồ (miễn phí), hoặc website tamlynhidong.vn (mục nuôi dạy con).'
+      ],
+      tapTrungOptions: [
+        'Chia nhỏ nhiệm vụ cho trẻ, tăng dần thời gian học phù hợp khả năng.',
+        'Thiết lập bảng thưởng, khen ngợi nhiều hơn chê trách.'
+      ],
+      hoSoThuTucOptions: [
+        'Phụ huynh chú ý điện thoại để nhận thông tin.',
+        'Bệnh án tóm tắt sẽ được gửi qua bưu điện sau 1 tháng. Nếu chưa nhận được, vui lòng gọi tổng đài để được hỗ trợ.',
+        'Khi đến bệnh viện, vui lòng mang theo căn cước công dân và đến quầy thông tin để được hướng dẫn.'
+      ],
     };
 
     // UI COMPONENTS
     const InputField = memo(({ label, value, fieldKey, updateField, placeholder, suffix, className = '' }) => {
       const handleChange = useCallback((e) => { updateField(fieldKey, e.target.value); }, [fieldKey, updateField]);
       return (
-        <div className={`inline-flex items-center gap-2 flex-wrap ${className}`}>
+        <div className={`inline-flex items-center gap-2 flex-wrap sm:flex-nowrap ${className}`}>
           {label && <label className="text-medical-800 font-medium text-sm whitespace-nowrap">{label}</label>}
           <input type="text" value={value || ''} onChange={handleChange} placeholder={placeholder} aria-label={label || placeholder}
-            className="px-4 py-3 border-2 border-medical-200 rounded-xl bg-white text-medical-800 placeholder-medical-400 min-w-[80px] transition-all duration-200 hover:border-medical-300 focus:border-medical-500" autoComplete="off" />
+            className="px-4 py-3 border border-medical-200 rounded-lg bg-white text-medical-800 placeholder-medical-400 min-w-[80px] min-h-[44px] transition-all duration-200 hover:border-medical-300 focus:border-medical-500 focus:ring-2 focus:ring-medical-100" autoComplete="off" />
           {suffix && <span className="text-medical-600 whitespace-nowrap text-sm">{suffix}</span>}
         </div>
       );
@@ -237,6 +299,7 @@
 
     const CheckboxGroup = memo(({ options, selected = [], fieldKey, updateField, columns = 2, selectAllLabel }) => {
       const allSelected = options.length > 0 && options.every(opt => selected.includes(opt));
+      const gridClass = columns >= 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : columns === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2';
       const handleSelectAll = useCallback(() => { updateField(fieldKey, allSelected ? [] : [...options]); }, [fieldKey, updateField, allSelected, options]);
       const handleChange = useCallback((option, checked) => {
         if (checked) { updateField(fieldKey, [...selected, option]); }
@@ -245,16 +308,16 @@
       return (
         <div>
           {selectAllLabel && (
-            <label className="flex items-center gap-3 px-4 py-3 mb-3 rounded-xl border-2 border-dashed border-health-300 bg-health-50 cursor-pointer hover:bg-health-100 transition-all duration-200 min-h-[44px]">
+            <label className="flex items-center gap-3 px-4 py-3 mb-3 rounded-lg border border-dashed border-health-300 bg-health-50 cursor-pointer hover:bg-health-100 transition-all duration-200 min-h-[44px]">
               <input type="checkbox" checked={allSelected} onChange={handleSelectAll} aria-label={selectAllLabel} />
               <span className="text-sm font-semibold text-health-700">{selectAllLabel}</span>
             </label>
           )}
-          <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          <div className={`grid gap-3 ${gridClass}`}>
             {options.map((option, idx) => (
-              <label key={`${fieldKey}-${idx}`} className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all duration-200 min-h-[44px] ${selected.includes(option) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+              <label key={`${fieldKey}-${idx}`} className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${selected.includes(option) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
                 <input type="checkbox" checked={selected.includes(option)} onChange={(e) => handleChange(option, e.target.checked)} aria-label={option} />
-                <span className={`text-sm ${selected.includes(option) ? 'text-medical-700 font-medium' : 'text-medical-800'}`}>{option}</span>
+                <span className={`text-sm leading-relaxed ${selected.includes(option) ? 'text-medical-800 font-bold' : 'text-medical-800'}`}>{option}</span>
               </label>
             ))}
           </div>
@@ -267,9 +330,9 @@
       return (
         <div className={inline ? "flex flex-wrap gap-3" : "flex flex-col gap-3"} role="radiogroup" aria-label={name}>
           {options.map((option, idx) => (
-            <label key={`${name}-${idx}`} className={`flex items-start gap-3 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all duration-200 min-h-[44px] ${selected === option ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+            <label key={`${name}-${idx}`} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${selected === option ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
               <input type="radio" name={name} checked={selected === option} onChange={() => handleChange(option)} aria-label={option} className="mt-0.5" />
-              <span className={`text-sm ${selected === option ? 'text-medical-700 font-medium' : 'text-medical-800'}`}>{option}</span>
+              <span className={`text-sm leading-relaxed ${selected === option ? 'text-medical-800 font-bold' : 'text-medical-800'}`}>{option}</span>
             </label>
           ))}
         </div>
@@ -279,8 +342,11 @@
     const ToggleOption = memo(({ label, checked, fieldKey, updateField, description }) => {
       const handleChange = useCallback((e) => { updateField(fieldKey, e.target.checked); }, [fieldKey, updateField]);
       return (
-        <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 min-h-[44px] ${checked ? 'bg-gradient-to-r from-health-50 to-medical-50 border-health-400 shadow-medical' : 'bg-white border-medical-100 hover:border-health-300 hover:shadow-card'}`}>
-          <input type="checkbox" checked={checked || false} onChange={handleChange} className="mt-0.5" aria-label={label} />
+        <label className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${checked ? 'bg-health-50 border-health-400 shadow-medical' : 'bg-white border-medical-100 hover:border-health-300 hover:shadow-card'}`}>
+          <input type="checkbox" checked={checked || false} onChange={handleChange} className="sr-only" aria-label={label} />
+          <span className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 rounded-full border transition-colors duration-200 ${checked ? 'bg-health-500 border-health-500' : 'bg-medical-100 border-medical-200'}`}>
+            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+          </span>
           <div>
             <span className={`font-medium ${checked ? 'text-health-700' : 'text-medical-800'}`}>{label}</span>
             {description && <p className="text-xs text-medical-600 mt-1 leading-relaxed">{description}</p>}
@@ -289,20 +355,32 @@
       );
     });
 
-    const SectionCard = ({ title, children, icon }) => (
-      <div className="bg-gradient-to-br from-white to-medical-50/30 rounded-2xl shadow-card border border-medical-100 overflow-hidden mb-6 transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5">
-        <div className="bg-gradient-to-r from-medical-500 to-medical-600 px-6 py-4">
+    const getSectionTone = (title = '') => {
+      const normalized = title.toLowerCase();
+      if (normalized.includes('chẩn') || normalized.includes('điều trị')) return 'from-health-500 to-health-600';
+      if (normalized.includes('chỉ định') || normalized.includes('trắc nghiệm')) return 'from-learning-500 to-learning-600';
+      if (normalized.includes('lo lắng') || normalized.includes('phỏng vấn')) return 'from-sky-500 to-cyan-600';
+      if (normalized.includes('khám') || normalized.includes('tương tác')) return 'from-teal-500 to-emerald-600';
+      return 'from-medical-500 to-medical-600';
+    };
+
+    const SectionCard = ({ title, children, icon }) => {
+      const tone = getSectionTone(title);
+      return (
+      <div className="bg-white rounded-2xl shadow-card border border-medical-100 overflow-hidden mb-6 transition-shadow duration-300 hover:shadow-card-hover">
+        <div className={`bg-gradient-to-r ${tone} px-6 py-4`}>
           <h3 className="font-heading font-semibold text-white flex items-center gap-3 text-lg">
             {icon && <span className="text-medical-200">{icon}</span>}{title}
           </h3>
         </div>
-        <div className="p-6 space-y-5">{children}</div>
+        <div className="p-5 sm:p-6 space-y-6">{children}</div>
       </div>
-    );
+      );
+    };
 
     const SubSection = ({ title, children }) => (
-      <div className="bg-medical-50/50 rounded-xl p-5 space-y-4 border border-medical-100">
-        <h4 className="font-heading font-semibold text-medical-700 text-sm uppercase tracking-wide">{title}</h4>
+      <div className="pl-4 py-4 space-y-4 border-l-2 border-medical-200">
+        <h4 className="font-heading font-semibold text-medical-700 text-sm uppercase tracking-[0.08em] border-b border-medical-100 pb-2">{title}</h4>
         {children}
       </div>
     );
@@ -310,12 +388,17 @@
     const CollapsibleSection = memo(({ title, icon, isOpen, onToggle, children, linkUrl }) => {
       const handleClick = () => { if (linkUrl) { window.open(linkUrl, '_blank'); } onToggle(); };
       return (
-        <div className={`bg-gradient-to-br from-white to-medical-50/30 rounded-2xl shadow-card border overflow-hidden mb-4 transition-all duration-300 ${isOpen ? 'border-medical-300 shadow-card-hover' : 'border-medical-100 hover:shadow-card-hover hover:-translate-y-0.5'}`}>
-          <button onClick={handleClick} aria-expanded={isOpen} className={`w-full px-6 py-5 flex items-center justify-between transition-all duration-200 min-h-[56px] ${isOpen ? 'bg-gradient-to-r from-medical-50 to-health-50' : 'hover:bg-medical-50/50'}`}>
-            <div className="flex items-center gap-4">
-              <input type="checkbox" checked={isOpen} onChange={() => {}} className="pointer-events-none" aria-hidden="true" />
+        <div className={`bg-white rounded-2xl shadow-card border overflow-hidden mb-4 transition-shadow duration-300 ${isOpen ? 'border-medical-300 shadow-card-hover' : 'border-medical-100 hover:shadow-card-hover'}`}>
+          <button onClick={handleClick} aria-expanded={isOpen} className={`w-full px-5 sm:px-6 py-5 flex items-center justify-between transition-all duration-200 min-h-[56px] ${isOpen ? 'bg-medical-50' : 'hover:bg-medical-50/50'}`}>
+            <div className="flex items-center gap-4 text-left">
+              <span className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border transition-all duration-200 ${isOpen ? 'bg-medical-500 border-medical-500 text-white' : 'bg-white border-medical-200 text-medical-500'}`}>
+                <span className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>{Icons.chevronDown}</span>
+              </span>
               <span className="text-medical-500">{icon}</span>
-              <span className={`font-heading font-semibold text-base ${isOpen ? 'text-medical-700' : 'text-medical-800'}`}>{title}</span>
+              <span>
+                <span className={`font-heading font-semibold text-base ${isOpen ? 'text-medical-700' : 'text-medical-800'}`}>{title}</span>
+                {!linkUrl && <span className="block text-xs text-medical-500 mt-1">Nhấn để mở phần nhập liệu</span>}
+              </span>
               {linkUrl && <span className="flex items-center gap-1 text-xs text-health-600 ml-2">{Icons.link} Mở link</span>}
             </div>
             {!linkUrl && <span className={`transform transition-transform duration-200 text-medical-500 ${isOpen ? 'rotate-180' : ''}`}>{Icons.chevronDown}</span>}
@@ -326,10 +409,10 @@
     });
 
     const CollapsibleSubSection = memo(({ title, isOpen, onToggle, children }) => (
-      <div className={`bg-medical-50/50 rounded-xl overflow-hidden border transition-all duration-200 ${isOpen ? 'border-medical-300' : 'border-medical-100'}`}>
-        <button onClick={onToggle} aria-expanded={isOpen} className={`w-full px-5 py-4 flex items-center justify-between transition-all duration-200 min-h-[48px] ${isOpen ? 'bg-medical-100/50' : 'hover:bg-medical-100/30'}`}>
+      <div className={`bg-white rounded-lg overflow-hidden border transition-all duration-200 ${isOpen ? 'border-medical-300 shadow-sm' : 'border-medical-100'}`}>
+        <button onClick={onToggle} aria-expanded={isOpen} className={`w-full px-4 sm:px-5 py-4 flex items-center justify-between transition-all duration-200 min-h-[48px] ${isOpen ? 'bg-medical-50' : 'hover:bg-medical-50/70'}`}>
           <div className="flex items-center gap-3">
-            <input type="checkbox" checked={isOpen} onChange={() => {}} className="pointer-events-none" aria-hidden="true" />
+            <span className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-all duration-200 ${isOpen ? 'bg-medical-500 border-medical-500 text-white' : 'bg-white border-medical-200 text-medical-500'}`}>{Icons.chevronDown}</span>
             <h4 className={`font-heading font-semibold text-sm uppercase tracking-wide ${isOpen ? 'text-medical-700' : 'text-medical-600'}`}>{title}</h4>
           </div>
           <span className={`transform transition-transform duration-200 text-medical-500 ${isOpen ? 'rotate-180' : ''}`}>{Icons.chevronDown}</span>
@@ -348,14 +431,17 @@
         }
       }, [options, handleChange]);
       return (
-        <div className="p-4 bg-white rounded-xl border border-medical-100 space-y-3 shadow-sm" tabIndex={0} onKeyDown={handleKeyDown}>
-          <p className="text-sm text-medical-700 font-medium">{label}</p>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
+        <div className="p-4 bg-white rounded-lg border border-medical-100 space-y-3 shadow-sm" tabIndex={0} onKeyDown={handleKeyDown}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-medical-700 font-semibold">{label}</p>
+            <span className="text-[11px] uppercase tracking-[0.08em] text-medical-400">Phím 1-{options.length}</span>
+          </div>
+          <div className="flex flex-col gap-2" role="radiogroup" aria-label={label}>
             {options.map((option, idx) => (
-              <label key={`${name}-opt-${idx}`} className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 cursor-pointer transition-all duration-200 text-sm min-h-[40px] ${selected === option ? 'bg-medical-100 border-medical-500 text-medical-700 font-medium shadow-sm' : 'bg-medical-50/50 border-medical-100 hover:border-medical-300 text-medical-800'}`}>
-                <input type="radio" name={name} checked={selected === option} onChange={() => handleChange(option)} className="sr-only" aria-label={option} />
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-medical-200 text-medical-700 text-xs font-bold mr-1">{idx + 1}</span>
-                <span>{option}</span>
+              <label key={`${name}-opt-${idx}`} className={`flex items-start gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 text-sm min-h-[44px] ${selected === option ? 'bg-medical-100 border-medical-500 text-medical-800 font-bold shadow-sm' : 'bg-white border-medical-100 hover:border-medical-300 text-medical-800'}`}>
+                <input type="radio" name={name} checked={selected === option} onChange={() => handleChange(option)} className="sr-only" aria-label={option} tabIndex={-1} />
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-medical-200 text-medical-700 text-xs font-bold mr-1 flex-shrink-0">{idx + 1}</span>
+                <span className="leading-relaxed">{option}</span>
               </label>
             ))}
           </div>
@@ -375,10 +461,10 @@
       return (
         <div className="flex flex-wrap items-center gap-3" tabIndex={0} onKeyDown={handleKeyDown}>
           <span className="text-medical-700 font-medium text-sm">{label}</span>
-          <div className="flex gap-2" role="radiogroup" aria-label={label}>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
             {options.map((opt, idx) => (
-              <label key={`${name}-${idx}`} className={`px-4 py-2 rounded-xl border-2 cursor-pointer text-sm transition-all duration-200 min-h-[40px] flex items-center ${selected === opt ? 'bg-medical-100 border-medical-500 text-medical-700 font-medium' : 'bg-medical-50/50 border-medical-100 hover:border-medical-300 text-medical-800'}`}>
-                <input type="radio" name={name} checked={selected === opt} onChange={() => handleChange(opt)} className="sr-only" aria-label={opt} />
+              <label key={`${name}-${idx}`} className={`px-4 py-3 rounded-lg border cursor-pointer text-sm transition-all duration-200 min-h-[44px] flex items-center ${selected === opt ? 'bg-medical-100 border-medical-500 text-medical-800 font-bold' : 'bg-white border-medical-100 hover:border-medical-300 text-medical-800'}`}>
+                <input type="radio" name={name} checked={selected === opt} onChange={() => handleChange(opt)} className="sr-only" aria-label={opt} tabIndex={-1} />
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-medical-200 text-medical-700 text-xs font-bold mr-1">{idx + 1}</span>
                 {opt}
               </label>
@@ -395,7 +481,7 @@
         <div className="flex flex-wrap items-center gap-2">
           {label && <span className="text-medical-700 text-sm font-medium">{label}</span>}
           <select value={value || ''} onChange={handleChange} aria-label={label || "Chọn mức độ"}
-            className="px-4 py-3 border-2 border-medical-200 rounded-xl bg-white text-medical-800 text-sm transition-all duration-200 hover:border-medical-300 focus:border-medical-500 cursor-pointer min-h-[44px]">
+            className="px-4 py-3 border border-medical-200 rounded-lg bg-white text-medical-800 text-sm transition-all duration-200 hover:border-medical-300 focus:border-medical-500 focus:ring-2 focus:ring-medical-100 cursor-pointer min-h-[44px]">
             <option value="">-- Chọn mức độ --</option>
             {optionList.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
@@ -404,15 +490,15 @@
     });
 
     // Progress Bar Component
-    const ProgressBar = memo(({ percentage, label }) => (
-      <div className="mb-4 px-1">
+    const ProgressBar = memo(({ percentage, label, stepLabel }) => (
+      <div className="mb-5 rounded-xl bg-white/80 border border-medical-100 p-4 shadow-card">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-medium text-medical-600">{label}</span>
-          <span className="text-xs font-bold text-medical-700">{percentage}%</span>
+          <span className="text-sm font-semibold text-medical-700">{label}</span>
+          <span className="text-xs font-bold text-medical-700">{stepLabel ? `${stepLabel} · ` : ''}{percentage}%</span>
         </div>
-        <div className="h-2 bg-medical-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-white rounded-full overflow-hidden border border-medical-100">
           <div 
-            className="h-full bg-gradient-to-r from-medical-400 via-medical-500 to-health-500 rounded-full transition-all duration-500 ease-out"
+            className={`h-full rounded-full transition-all duration-500 ease-out ${percentage >= 80 ? 'bg-gradient-to-r from-health-400 to-health-600 shadow-medical' : 'bg-gradient-to-r from-medical-400 via-medical-500 to-health-500'}`}
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -432,6 +518,13 @@
             </div>
             <SubSection title="Cách sinh">
               <CheckboxGroup options={CONFIG.cachSinhOptions} selected={formData.cachSinh || []} fieldKey="cachSinh" updateField={updateField} columns={3} />
+              <div className="mt-4 space-y-3">
+                <ToggleOption label="Không ghi nhận bất thường lúc sinh" checked={formData.khongBatThuongLucSinh} fieldKey="khongBatThuongLucSinh" updateField={updateField} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <ToggleOption label="Bất thường lúc sinh:" checked={formData.coBatThuongLucSinh} fieldKey="coBatThuongLucSinh" updateField={updateField} />
+                  {formData.coBatThuongLucSinh && <InputField fieldKey="batThuongLucSinhDetail" value={formData.batThuongLucSinhDetail} updateField={updateField} placeholder="mô tả bất thường" className="flex-1" />}
+                </div>
+              </div>
             </SubSection>
             <SubSection title="Tuổi thai">
               <div className="flex flex-wrap items-center gap-4">
@@ -444,7 +537,7 @@
             <div className="flex flex-wrap items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-medical-50 rounded-xl border border-purple-100">
               <InputField fieldKey="bietDi" label="Biết đi lúc" value={formData.bietDi} updateField={updateField} placeholder="số" suffix="tháng," />
               <div className="flex items-center gap-3">
-                <select value={formData.bietNoi || ''} onChange={(e) => updateField('bietNoi', e.target.value)} className="px-4 py-3 border-2 border-medical-200 rounded-xl bg-white text-medical-800 transition-all duration-200 hover:border-medical-300 focus:border-medical-500 cursor-pointer min-h-[44px]" aria-label="Tình trạng nói">
+                <select value={formData.bietNoi || ''} onChange={(e) => updateField('bietNoi', e.target.value)} className="px-4 py-3 border border-medical-200 rounded-lg bg-white text-medical-800 transition-all duration-200 hover:border-medical-300 focus:border-medical-500 focus:ring-2 focus:ring-medical-100 cursor-pointer min-h-[44px]" aria-label="Tình trạng nói">
                   <option value="">-- Chọn --</option>
                   <option value="đã biết nói">biết nói từ đơn lúc</option>
                   <option value="chưa biết nói">chưa biết nói</option>
@@ -453,17 +546,21 @@
               </div>
             </div>
             <InputField fieldKey="benhManTinh" label="Bệnh mãn tính đang điều trị:" value={formData.benhManTinh} updateField={updateField} placeholder="tên bệnh hoặc không" className="w-full" />
+            <div className="flex flex-wrap items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-medical-50 rounded-xl border border-green-100">
+              <InputField fieldKey="hienDangHoc" label="Hiện đang học:" value={formData.hienDangHoc} updateField={updateField} placeholder="tên trường/lớp" className="flex-1" />
+              <InputField fieldKey="hienDangHocThoiGian" label="Thời gian:" value={formData.hienDangHocThoiGian} updateField={updateField} placeholder="số" suffix="tháng" />
+            </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="2. Bệnh sử" icon={Icons.clipboard}>
+        <SectionCard title="2. Tiền sử khám tâm lý" icon={Icons.clipboard}>
           <div className="space-y-5">
             <div className="flex gap-4">
-              <label className={`flex-1 flex items-center justify-center gap-3 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 min-h-[56px] ${formData.tinhTrangKham === 'chuaKham' ? 'bg-gradient-to-r from-blue-50 to-medical-50 border-blue-400 shadow-medical' : 'bg-white border-medical-100 hover:border-blue-300 hover:shadow-card'}`}>
+              <label className={`flex-1 flex items-center justify-center gap-3 p-5 rounded-lg border cursor-pointer transition-all duration-200 min-h-[56px] ${formData.tinhTrangKham === 'chuaKham' ? 'bg-gradient-to-r from-blue-50 to-medical-50 border-blue-400 shadow-medical' : 'bg-white border-medical-100 hover:border-blue-300 hover:shadow-card'}`}>
                 <input type="radio" name="tinhTrangKham" checked={formData.tinhTrangKham === 'chuaKham'} onChange={() => updateField('tinhTrangKham', 'chuaKham')} aria-label="Chưa khám lần nào" />
                 <span className={`font-medium ${formData.tinhTrangKham === 'chuaKham' ? 'text-blue-700' : 'text-medical-700'}`}>Chưa khám lần nào</span>
               </label>
-              <label className={`flex-1 flex items-center justify-center gap-3 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 min-h-[56px] ${formData.tinhTrangKham === 'daKham' ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-400 shadow-medical' : 'bg-white border-medical-100 hover:border-amber-300 hover:shadow-card'}`}>
+              <label className={`flex-1 flex items-center justify-center gap-3 p-5 rounded-lg border cursor-pointer transition-all duration-200 min-h-[56px] ${formData.tinhTrangKham === 'daKham' ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-400 shadow-medical' : 'bg-white border-medical-100 hover:border-amber-300 hover:shadow-card'}`}>
                 <input type="radio" name="tinhTrangKham" checked={formData.tinhTrangKham === 'daKham'} onChange={() => updateField('tinhTrangKham', 'daKham')} aria-label="Đã khám" />
                 <span className={`font-medium ${formData.tinhTrangKham === 'daKham' ? 'text-amber-700' : 'text-medical-700'}`}>Đã khám</span>
               </label>
@@ -472,8 +569,14 @@
               <div className="space-y-5 p-5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 animate-fade-in">
                 <InputField fieldKey="tuoiKham" label="Lúc" value={formData.tuoiKham} updateField={updateField} placeholder="số" suffix="tháng, khám tại" />
                 <SubSection title="Nơi khám"><CheckboxGroup options={CONFIG.noiKhamOptions} selected={formData.noiKham || []} fieldKey="noiKham" updateField={updateField} columns={3} /></SubSection>
-                <SubSection title="Lý do khám"><CheckboxGroup options={CONFIG.lyDoKhamOptions} selected={formData.lyDoKham || []} fieldKey="lyDoKham" updateField={updateField} columns={2} /></SubSection>
-                <SubSection title="Chẩn đoán trước đây"><CheckboxGroup options={CONFIG.chanDoanTruocOptions} selected={formData.chanDoanTruoc || []} fieldKey="chanDoanTruoc" updateField={updateField} columns={2} /></SubSection>
+                <SubSection title="Lý do khám">
+                  <CheckboxGroup options={CONFIG.lyDoKhamOptions} selected={formData.lyDoKham || []} fieldKey="lyDoKham" updateField={updateField} columns={2} />
+                  <InputField fieldKey="lyDoKhamKhac" label="Khác:" value={formData.lyDoKhamKhac} updateField={updateField} placeholder="lý do khác" className="w-full mt-3" />
+                </SubSection>
+                <SubSection title="Chẩn đoán trước đây">
+                  <CheckboxGroup options={CONFIG.chanDoanTruocOptions} selected={formData.chanDoanTruoc || []} fieldKey="chanDoanTruoc" updateField={updateField} columns={2} />
+                  <InputField fieldKey="chanDoanTruocKhac" label="Khác:" value={formData.chanDoanTruocKhac} updateField={updateField} placeholder="chẩn đoán khác" className="w-full mt-3" />
+                </SubSection>
                 <ToggleOption label="Sau khám có can thiệp" checked={formData.sauKham} fieldKey="sauKham" updateField={updateField} />
                 {formData.sauKham && (
                   <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-xl border border-amber-200 animate-fade-in">
@@ -499,47 +602,68 @@
           </SubSection>
         </SectionCard>
 
-        <SectionCard title="4. Các lo lắng hiện tại của phụ huynh" icon={Icons.heartPulse}>
+      </div>
+    ));
+
+    // TAB: BỆNH SỬ (mới - chứa Lo lắng phụ huynh + Phỏng vấn thêm)
+    const BenhSuTab = memo(({ formData, updateField }) => (
+      <div className="space-y-6">
+        <SectionCard title="Các lo lắng hiện tại của phụ huynh" icon={Icons.heartPulse}>
           <CheckboxGroup options={CONFIG.loLangOptions} selected={formData.loLang || []} fieldKey="loLang" updateField={updateField} columns={2} />
           <InputField fieldKey="loLangKhac" label="Khác:" value={formData.loLangKhac} updateField={updateField} placeholder="nhập lo lắng khác" className="w-full mt-4" />
+          <InputField fieldKey="loLangNote" label="Ghi chú thêm:" value={formData.loLangNote} updateField={updateField} placeholder="ghi chú" className="w-full mt-2" />
         </SectionCard>
 
-        <SectionCard title="5. Phỏng vấn thêm" icon={Icons.chat}>
-          <SubSection title="a. Tương tác xã hội - cảm xúc">
+        <SectionCard title="Phỏng vấn thêm" icon={Icons.chat}>
+          <SubSection title="Tương tác xã hội - cảm xúc">
             <div className="space-y-4">
               <GroupedRadioItem label="Đáp ứng tên gọi:" name="pvDapUngTen" options={['Hoàn toàn không đáp ứng', 'Chỉ đáp ứng trong tình huống quen thuộc', 'Đáp ứng nhưng chậm/cần nhắc', 'Đáp ứng bình thường']} selected={formData.pvDapUngTen} fieldKey="pvDapUngTen" updateField={updateField} />
               <GroupedRadioItem label="Khởi đầu tương tác:" name="pvTuongTac" options={['Luôn tránh né', 'Hiếm khi chủ động', 'Cần hỗ trợ', 'Tự nhiên']} selected={formData.pvTuongTac} fieldKey="pvTuongTac" updateField={updateField} />
               <GroupedRadioItem label="Khoe và gây chú ý:" name="pvKhoe" options={['Không khoe/gây chú ý', 'Có nhưng ít', 'Thường xuyên']} selected={formData.pvKhoe} fieldKey="pvKhoe" updateField={updateField} />
               <GroupedRadioItem label="Cười xã hội:" name="pvCuoiXaHoi" options={['Không cười xã hội', 'Có nhưng không thường xuyên', 'Bình thường']} selected={formData.pvCuoiXaHoi} fieldKey="pvCuoiXaHoi" updateField={updateField} />
+              <InputField fieldKey="pvTuongTacXaHoiNote" label="Ghi chú:" value={formData.pvTuongTacXaHoiNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full" />
             </div>
           </SubSection>
-          <SubSection title="b. Hành vi giao tiếp phi ngôn ngữ">
+          <SubSection title="Hành vi giao tiếp phi ngôn ngữ">
             <div className="space-y-4">
               <GroupedRadioItem label="Giao tiếp bằng mắt/cử chỉ:" name="pvGiaoTiepMat" options={['Hoàn toàn không', 'Chỉ trong tình huống quen', 'Có nhưng chậm/cần nhắc', 'Bình thường']} selected={formData.pvGiaoTiepMat} fieldKey="pvGiaoTiepMat" updateField={updateField} />
               <GroupedRadioItem label="Biểu cảm khuôn mặt:" name="pvBieuCam" options={['Không có biểu cảm', 'Hạn chế/không phù hợp', 'Đơn giản nhưng thiếu tự nhiên', 'Phản ứng phù hợp']} selected={formData.pvBieuCam} fieldKey="pvBieuCam" updateField={updateField} />
               <GroupedRadioItem label="Nhận ra biểu cảm người khác:" name="pvNhanBieuCam" options={['Không nhận ra', 'Khó nhận ra/cần hỗ trợ', 'Sử dụng cử chỉ phù hợp']} selected={formData.pvNhanBieuCam} fieldKey="pvNhanBieuCam" updateField={updateField} />
+              <InputField fieldKey="pvGiaoTiepNote" label="Ghi chú:" value={formData.pvGiaoTiepNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full" />
             </div>
           </SubSection>
-          <SubSection title="c. Phát triển, duy trì và hiểu mối quan hệ">
+          <SubSection title="Phát triển, duy trì và hiểu mối quan hệ">
             <div className="space-y-4">
               <GroupedRadioItem label="Quan tâm chơi với người khác:" name="pvChoiVoiNguoiKhac" options={['Hoàn toàn không', 'Chỉ trong tình huống quen', 'Có thể nhưng chậm/cần nhắc', 'Bình thường']} selected={formData.pvChoiVoiNguoiKhac} fieldKey="pvChoiVoiNguoiKhac" updateField={updateField} />
               <GroupedRadioItem label="Tham gia trò chơi nhóm/giả tưởng:" name="pvTroChoiNhom" options={['Không tham gia', 'Chỉ khi được hướng dẫn', 'Tham gia nhưng thiếu tự nhiên', 'Tự nhiên']} selected={formData.pvTroChoiNhom} fieldKey="pvTroChoiNhom" updateField={updateField} />
               <GroupedRadioItem label="Điều chỉnh hành vi theo bối cảnh:" name="pvChoiMotMinh" options={['Luôn chơi một mình', 'Khó thay đổi theo bối cảnh', 'Cần hỗ trợ chia sẻ/lượt chơi', 'Điều chỉnh phù hợp']} selected={formData.pvChoiMotMinh} fieldKey="pvChoiMotMinh" updateField={updateField} />
+              <InputField fieldKey="pvPhatTrienNote" label="Ghi chú:" value={formData.pvPhatTrienNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full" />
             </div>
           </SubSection>
-          <SubSection title="d. Hành vi lặp lại"><CheckboxGroup options={CONFIG.hanhViLapLaiOptions} selected={formData.hanhViLapLai || []} fieldKey="hanhViLapLai" updateField={updateField} columns={3} /></SubSection>
-          <SubSection title="e. Bám víu thói quen"><CheckboxGroup options={CONFIG.bamViuThoiQuenOptions} selected={formData.bamViuThoiQuen || []} fieldKey="bamViuThoiQuen" updateField={updateField} columns={2} /></SubSection>
-          <SubSection title="f. Sở thích hạn chế">
+          <SubSection title="Hành vi lặp lại">
+            <CheckboxGroup options={CONFIG.hanhViLapLaiOptions} selected={formData.hanhViLapLai || []} fieldKey="hanhViLapLai" updateField={updateField} columns={3} />
+            <InputField fieldKey="hanhViLapLaiNote" label="Ghi chú:" value={formData.hanhViLapLaiNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full mt-3" />
+          </SubSection>
+          <SubSection title="Bám víu thói quen">
+            <CheckboxGroup options={CONFIG.bamViuThoiQuenOptions} selected={formData.bamViuThoiQuen || []} fieldKey="bamViuThoiQuen" updateField={updateField} columns={2} />
+            <InputField fieldKey="bamViuNote" label="Ghi chú:" value={formData.bamViuNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full mt-3" />
+          </SubSection>
+          <SubSection title="Sở thích hạn chế">
             <CheckboxGroup options={CONFIG.soThichHanCheOptions} selected={formData.soThichHanChe || []} fieldKey="soThichHanChe" updateField={updateField} columns={2} />
             <InputField fieldKey="soThichKhac" label="Khác:" value={formData.soThichKhac} updateField={updateField} placeholder="nhập sở thích khác" className="w-full mt-4" />
+            <InputField fieldKey="soThichNote" label="Ghi chú:" value={formData.soThichNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full mt-2" />
           </SubSection>
-          <SubSection title="g. Phản ứng giác quan"><CheckboxGroup options={CONFIG.phanUngGiacQuanOptions} selected={formData.phanUngGiacQuan || []} fieldKey="phanUngGiacQuan" updateField={updateField} columns={2} /></SubSection>
-          <SubSection title="h. Thoái lùi kỹ năng">
+          <SubSection title="Phản ứng giác quan">
+            <CheckboxGroup options={CONFIG.phanUngGiacQuanOptions} selected={formData.phanUngGiacQuan || []} fieldKey="phanUngGiacQuan" updateField={updateField} columns={2} />
+            <InputField fieldKey="phanUngNote" label="Ghi chú:" value={formData.phanUngNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full mt-3" />
+          </SubSection>
+          <SubSection title="Thoái lùi kỹ năng">
             <div className="flex flex-wrap items-center gap-4">
               <InputField fieldKey="thoaiLuiKyNang" value={formData.thoaiLuiKyNang} updateField={updateField} placeholder="kỹ năng (vd: ngôn ngữ, vận động...)" className="flex-1" />
               <span className="text-medical-600">lúc</span>
               <InputField fieldKey="thoaiLuiLuc" value={formData.thoaiLuiLuc} updateField={updateField} placeholder="số" suffix="tháng" />
             </div>
+            <InputField fieldKey="thoaiLuiNote" label="Ghi chú:" value={formData.thoaiLuiNote} updateField={updateField} placeholder="ghi chú thêm" className="w-full mt-3" />
           </SubSection>
         </SectionCard>
       </div>
@@ -572,7 +696,7 @@
                   <div className="flex flex-wrap gap-2">
                     <span className="text-medical-700 font-medium w-full mb-2 text-sm">Chỉ bằng ngón trỏ:</span>
                     {['chưa biết chỉ bằng ngón trỏ', 'có chỉ trong một vài tình huống', 'chỉ tốt để yêu cầu và theo yêu cầu'].map((opt, idx) => (
-                      <label key={`chiNgonTro-${idx}`} className={`px-4 py-2 rounded-xl border-2 cursor-pointer text-sm transition-all duration-200 min-h-[40px] flex items-center ${formData.khamChiNgonTro === opt ? 'bg-medical-100 border-medical-500 text-medical-700 font-medium' : 'bg-medical-50/50 border-medical-100 hover:border-medical-300 text-medical-800'}`}>
+                      <label key={`chiNgonTro-${idx}`} className={`px-4 py-3 rounded-lg border cursor-pointer text-sm transition-all duration-200 min-h-[44px] flex items-center ${formData.khamChiNgonTro === opt ? 'bg-medical-100 border-medical-500 text-medical-800 font-bold' : 'bg-white border-medical-100 hover:border-medical-300 text-medical-800'}`}>
                         <input type="radio" name="khamChiNgonTro" checked={formData.khamChiNgonTro === opt} onChange={() => updateField('khamChiNgonTro', opt)} className="sr-only" aria-label={opt} />{opt}
                       </label>
                     ))}
@@ -611,17 +735,40 @@
             
             <CollapsibleSubSection title="f. Người khám đánh giá các mốc phát triển của trẻ" isOpen={formData.openDanhGiaMocPhatTrien} onToggle={() => toggleSection('openDanhGiaMocPhatTrien')}>
               <div className="space-y-5">
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-medical-50 rounded-xl border border-blue-200">
-                  <InputField fieldKey="tuoiThang" label="🎂 Tuổi của trẻ (để tính Capute):" value={formData.tuoiThang} updateField={updateField} placeholder="số" suffix="tháng" />
+                <div className="p-4 bg-white rounded-lg border-l-4 border-medical-400 shadow-sm">
+                  <div className="flex items-center gap-3 text-medical-700">
+                    <span className="text-medical-500">{Icons.calendar}</span>
+                    <InputField fieldKey="tuoiThang" label="Tuổi của trẻ (để tính Capute):" value={formData.tuoiThang} updateField={updateField} placeholder="số" suffix="tháng" />
+                  </div>
                 </div>
                 <div className="p-4 bg-gradient-to-r from-purple-50 to-medical-50 rounded-xl border border-purple-200">
                   <h5 className="font-heading font-semibold text-medical-700 mb-4">* Đánh giá nhanh các lĩnh vực phát triển:</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField fieldKey="vanDongTho" label="Vận động thô:" value={formData.vanDongTho} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="ngonNguHieu" label="Ngôn ngữ hiểu:" value={formData.ngonNguHieu} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="ngonNguDienDat" label="Ngôn ngữ diễn đạt:" value={formData.ngonNguDienDat} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="giaiQuyetVanDe" label="Giải quyết vấn đề:" value={formData.giaiQuyetVanDe} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="xaHoi" label="Xã hội:" value={formData.xaHoi} updateField={updateField} placeholder="số" suffix="tháng" />
+                  <div className="space-y-3">
+                    {[
+                      { key: 'vanDongTho', label: 'Vận động thô' },
+                      { key: 'ngonNguHieu', label: 'Ngôn ngữ hiểu' },
+                      { key: 'ngonNguDienDat', label: 'Ngôn ngữ diễn đạt' },
+                      { key: 'giaiQuyetVanDe', label: 'Giải quyết vấn đề' },
+                      { key: 'xaHoi', label: 'Xã hội' },
+                      { key: 'tuLap', label: 'Tự lập' },
+                    ].map(({ key, label }) => {
+                      const val = parseFloat(formData[key]);
+                      const age = parseFloat(formData.tuoiThang);
+                      const pct = (age > 0 && val > 0) ? Math.round((val / age) * 100) : null;
+                      const isLow = pct !== null && pct < 70;
+                      return (
+                        <div key={key} className="flex items-center gap-3 flex-wrap">
+                          <div className="flex-1 min-w-[200px]">
+                            <InputField fieldKey={key} label={`${label}:`} value={formData[key]} updateField={updateField} placeholder="số" suffix="tháng" />
+                          </div>
+                          {pct !== null && (
+                            <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg ${isLow ? 'bg-warning-100 text-warning-700 border border-warning-300' : 'bg-health-100 text-health-700'}`}>
+                              {pct}% {isLow && <><span className="text-warning-600">{Icons.warning}</span><span>&lt; 70%</span></>}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="p-5 bg-gradient-to-br from-medical-50 to-health-50 rounded-2xl border border-medical-200">
@@ -629,8 +776,14 @@
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                     <InputField fieldKey="tuoiTranR" label="Tuổi trần ngôn ngữ cảm nhận (R):" value={formData.tuoiTranR} updateField={updateField} placeholder="số" suffix="tháng" />
                     <InputField fieldKey="tuoiTranE" label="Tuổi trần ngôn ngữ diễn đạt (E):" value={formData.tuoiTranE} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="clams" label="Điểm ngôn ngữ (CLAMS):" value={formData.clams} updateField={updateField} placeholder="số" suffix="tháng" />
-                    <InputField fieldKey="cat" label="Điểm nhận thức (CAT):" value={formData.cat} updateField={updateField} placeholder="số" suffix="tháng" />
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <InputField fieldKey="clams" label="Điểm ngôn ngữ (CLAMS):" value={formData.clams} updateField={updateField} placeholder="số" suffix="tháng" />
+                      {formData.tuoiThang && formData.clams && (() => { const p = Math.round((parseFloat(formData.clams)/parseFloat(formData.tuoiThang))*100); return <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg ${p < 70 ? 'bg-warning-100 text-warning-700 border border-warning-300' : 'bg-health-100 text-health-700'}`}>{p}%{p < 70 && <span className="text-warning-600">{Icons.warning}</span>}</span>; })()}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <InputField fieldKey="cat" label="Điểm nhận thức (CAT):" value={formData.cat} updateField={updateField} placeholder="số" suffix="tháng" />
+                      {formData.tuoiThang && formData.cat && (() => { const p = Math.round((parseFloat(formData.cat)/parseFloat(formData.tuoiThang))*100); return <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg ${p < 70 ? 'bg-warning-100 text-warning-700 border border-warning-300' : 'bg-health-100 text-health-700'}`}>{p}%{p < 70 && <span className="text-warning-600">{Icons.warning}</span>}</span>; })()}
+                    </div>
                   </div>
                   <div className="p-4 bg-white rounded-xl border border-medical-200 shadow-sm">
                     <h6 className="font-heading font-semibold text-medical-600 mb-3 flex items-center gap-2">{Icons.chart} Kết quả tính toán tự động:</h6>
@@ -656,25 +809,54 @@
             <p className="text-medical-700 text-sm flex items-center gap-2">{Icons.document}<span>Tick chọn vào các mục cần sử dụng để mở nội dung chi tiết</span></p>
           </div>
 
-          <CollapsibleSection title="1. Vineland II" icon={Icons.chart} isOpen={formData.openVineland} onToggle={() => toggleSection('openVineland')} linkUrl="https://gemini.google.com/gem/13Q9UC8nDG4mSWQlJlVC847wb7eTFtDK6?usp=sharing" />
+          <CollapsibleSection title="Test ATEC" icon={Icons.heartPulse} isOpen={formData.openATEC} onToggle={() => toggleSection('openATEC')}>
+            <div className="space-y-4">
+              <p className="text-sm text-medical-600 italic">Đánh giá mức độ theo 4 lĩnh vực:</p>
+              {[
+                { key: 'atecNgonNgu', label: 'Âm/lời nói/ngôn ngữ/giao tiếp' },
+                { key: 'atecTuongTac', label: 'Tương tác xã hội' },
+                { key: 'atecGiacQuan', label: 'Giác quan/nhận thức' },
+                { key: 'atecSucKhoe', label: 'Vấn đề sức khỏe/hành vi/thể chất' },
+              ].map(({ key, label }) => (
+                <div key={key} className="p-4 bg-white rounded-xl border border-medical-100 shadow-sm">
+                  <p className="text-sm font-medium text-medical-700 mb-3">{label}:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CONFIG.atecMucDoOptions.map((opt, idx) => (
+                      <label key={opt} className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer text-sm transition-all duration-200 min-h-[44px] ${formData[key] === opt ? 'bg-medical-100 border-medical-500 text-medical-800 font-bold shadow-sm' : 'bg-white border-medical-100 hover:border-medical-300 text-medical-800'}`}>
+                        <input type="radio" name={key} checked={formData[key] === opt} onChange={() => updateField(key, opt)} className="sr-only" tabIndex={-1} />
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-medical-200 text-medical-700 text-xs font-bold mr-1">{idx+1}</span>
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
 
-          <CollapsibleSection title="2. Phiếu ADHD phụ huynh" icon={Icons.users} isOpen={formData.openADHDPH} onToggle={() => toggleSection('openADHDPH')}>
+          <CollapsibleSection title="Vineland II" icon={Icons.chart} isOpen={formData.openVineland} onToggle={() => toggleSection('openVineland')} linkUrl="https://gemini.google.com/gem/13Q9UC8nDG4mSWQlJlVC847wb7eTFtDK6?usp=sharing" />
+
+          <CollapsibleSection title="Phiếu ADHD phụ huynh" icon={Icons.users} isOpen={formData.openADHDPH} onToggle={() => toggleSection('openADHDPH')}>
             <div className="space-y-4">
               <InputField fieldKey="adhdPHKemTapTrung" label="Biểu hiện kém tập trung =" value={formData.adhdPHKemTapTrung} updateField={updateField} placeholder="số" suffix="/9" />
               <InputField fieldKey="adhdPHTangDong" label="Biểu hiện tăng động =" value={formData.adhdPHTangDong} updateField={updateField} placeholder="số" suffix="/9" />
+              <InputField fieldKey="adhdPHODD" label="Rối loạn thách thức chống đối/Rối loạn cư xử =" value={formData.adhdPHODD} updateField={updateField} placeholder="số" suffix="/22" />
+              <InputField fieldKey="adhdPHLoAu" label="Lo âu/Trầm cảm =" value={formData.adhdPHLoAu} updateField={updateField} placeholder="số" suffix="/7" />
               <InputField fieldKey="adhdPHAnhHuong" label="Ảnh hưởng chức năng:" value={formData.adhdPHAnhHuong} updateField={updateField} placeholder="mô tả" className="w-full" />
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="3. Phiếu ADHD giáo viên" icon={Icons.teacher} isOpen={formData.openADHDGV} onToggle={() => toggleSection('openADHDGV')}>
+          <CollapsibleSection title="Phiếu ADHD giáo viên" icon={Icons.teacher} isOpen={formData.openADHDGV} onToggle={() => toggleSection('openADHDGV')}>
             <div className="space-y-4">
               <InputField fieldKey="adhdGVKemTapTrung" label="Biểu hiện kém tập trung =" value={formData.adhdGVKemTapTrung} updateField={updateField} placeholder="số" suffix="/9" />
               <InputField fieldKey="adhdGVTangDong" label="Biểu hiện tăng động =" value={formData.adhdGVTangDong} updateField={updateField} placeholder="số" suffix="/9" />
+              <InputField fieldKey="adhdGVODD" label="Rối loạn thách thức chống đối/Rối loạn cư xử =" value={formData.adhdGVODD} updateField={updateField} placeholder="số" suffix="/10" />
+              <InputField fieldKey="adhdGVLoAu" label="Lo âu/Trầm cảm =" value={formData.adhdGVLoAu} updateField={updateField} placeholder="số" suffix="/7" />
               <InputField fieldKey="adhdGVAnhHuong" label="Ảnh hưởng chức năng:" value={formData.adhdGVAnhHuong} updateField={updateField} placeholder="mô tả" className="w-full" />
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="4. Test NEMI 2" icon={Icons.brain} isOpen={formData.openNEMI} onToggle={() => toggleSection('openNEMI')}>
+          <CollapsibleSection title="Test NEMI 2" icon={Icons.brain} isOpen={formData.openNEMI} onToggle={() => toggleSection('openNEMI')}>
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputField fieldKey="nemiNgayLam" label="Ngày làm trắc nghiệm:" value={formData.nemiNgayLam} updateField={updateField} placeholder="dd/mm/yyyy" />
@@ -699,7 +881,7 @@
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="5. Test WISC IV" icon={Icons.puzzle} isOpen={formData.openWISC} onToggle={() => toggleSection('openWISC')}>
+          <CollapsibleSection title="Test WISC IV" icon={Icons.puzzle} isOpen={formData.openWISC} onToggle={() => toggleSection('openWISC')}>
             <div className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputField fieldKey="wiscNgayLam" label="Ngày làm trắc nghiệm:" value={formData.wiscNgayLam} updateField={updateField} placeholder="dd/mm/yyyy" />
@@ -734,22 +916,87 @@
           <InputField fieldKey="chanDoanKhac" label="Khác:" value={formData.chanDoanKhac} updateField={updateField} placeholder="chẩn đoán khác" className="w-full mt-4" />
         </SectionCard>
         <SectionCard title="ĐIỀU TRỊ/CAN THIỆP" icon={Icons.heartPulse}>
-          <div className="space-y-5">
-            <ToggleOption label="Trẻ cần được học can thiệp với chương trình cá nhân phù hợp tuổi phát triển, 1 giờ/ngày x 5 ngày + học hòa nhập" checked={formData.canThiepHocTap} fieldKey="canThiepHocTap" updateField={updateField} />
-            <SubSection title="Phụ huynh tương tác với trẻ theo hướng dẫn">
-              <CheckboxGroup options={CONFIG.huongDanPHOptions} selected={formData.huongDanPH || []} fieldKey="huongDanPH" updateField={updateField} columns={3} selectAllLabel="✓ Chọn tất cả" />
-            </SubSection>
-            <SubSection title="Tái khám"><RadioGroup name="taiKham" options={CONFIG.taiKhamOptions} selected={formData.taiKham} fieldKey="taiKham" updateField={updateField} inline={true} /></SubSection>
-            <SubSection title="Khám thêm chuyên khoa"><CheckboxGroup options={CONFIG.khamThemChuyenKhoaOptions} selected={formData.khamThemChuyenKhoa || []} fieldKey="khamThemChuyenKhoa" updateField={updateField} columns={3} /></SubSection>
-            <SubSection title="Hướng dẫn thêm cho phụ huynh">
-              <div className="space-y-4">
-                <ToggleOption label="Vệ sinh giấc ngủ" description="2 tiếng trước khi đi ngủ không ăn quá no, không để quá đói, không xem tivi điện thoại, không vận động mạnh." checked={formData.veSinhGiacNgu} fieldKey="veSinhGiacNgu" updateField={updateField} />
-                <ToggleOption label="Phớt lờ các hành vi ăn vạ" description="Không nhìn, không sờ, không nói chuyện, không đáp ứng yêu cầu vô lý của trẻ. Cần có sự đồng bộ giữa các thành viên trong gia đình đặc biệt là ông bà." checked={formData.photLoHanhVi} fieldKey="photLoHanhVi" updateField={updateField} />
-                <ToggleOption label="Thiết lập bảng thưởng; khen nhiều hơn chê" checked={formData.bangThuong} fieldKey="bangThuong" updateField={updateField} />
-                <ToggleOption label="Chú ý điện thoại, nhận bệnh án tóm tắt qua đường bưu điện" description="Nhận bệnh án tóm tắt sau 1 tháng qua đường bưu điện. Gọi tổng đài nếu sau 1 tháng chưa nhận được." checked={formData.chuYDienThoai} fieldKey="chuYDienThoai" updateField={updateField} />
-                <ToggleOption label="Mang theo căn cước công dân đến quầy thông tin" description="Đến quầy thông tin ở tầng trệt để được hướng dẫn nhận bệnh án tóm tắt sau 3 giờ." checked={formData.mangTheoCCCD} fieldKey="mangTheoCCCD" updateField={updateField} />
+          <div className="space-y-6">
+
+            {/* Học */}
+            <SubSection title="Học">
+              <p className="text-xs text-medical-500 mb-3">Chọn một</p>
+              <div className="space-y-3">
+                {[
+                  'Cho trẻ tham gia chương trình can thiệp cá nhân phù hợp với tuổi phát triển (khoảng 1 giờ/ngày, 5 ngày/tuần). Phụ huynh trao đổi với giáo viên để nắm mục tiêu và cách hỗ trợ trẻ tại nhà, kết hợp học hòa nhập.',
+                  'Cho trẻ học mẫu giáo.'
+                ].map((opt, idx) => (
+                  <label key={opt} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${formData.hocLuaChon === opt ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+                    <input type="radio" name="hocLuaChon" checked={formData.hocLuaChon === opt} onChange={() => updateField('hocLuaChon', opt)} className="mt-1" tabIndex={-1} />
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-medical-200 text-medical-700 text-xs font-bold mr-1 mt-0.5 flex-shrink-0">{idx+1}</span>
+                    <span className={`text-sm ${formData.hocLuaChon === opt ? 'text-medical-700 font-medium' : 'text-medical-800'}`}>{opt}</span>
+                  </label>
+                ))}
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-medical-100">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-medical-200 text-medical-700 text-xs font-bold flex-shrink-0">3</span>
+                  <InputField fieldKey="hocTuNhap" value={formData.hocTuNhap} updateField={updateField} placeholder="Nhập hướng dẫn học khác..." className="flex-1" />
+                </div>
               </div>
             </SubSection>
+
+            {/* Tiền ngôn ngữ */}
+            <SubSection title="Tiền ngôn ngữ">
+              <p className="text-xs text-medical-500 mb-2">Phụ huynh tương tác với trẻ theo hướng dẫn</p>
+              <CheckboxGroup options={CONFIG.huongDanPHOptions} selected={formData.huongDanPH || []} fieldKey="huongDanPH" updateField={updateField} columns={3} selectAllLabel="✓ Chọn tất cả" />
+              <div className="mt-4 space-y-2">
+                {CONFIG.tienNgonNguExtraOptions.map((opt, idx) => (
+                  <label key={opt} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${(formData.tienNgonNguExtra || []).includes(opt) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+                    <input type="checkbox" checked={(formData.tienNgonNguExtra || []).includes(opt)} onChange={(e) => { const cur = formData.tienNgonNguExtra || []; updateField('tienNgonNguExtra', e.target.checked ? [...cur, opt] : cur.filter(o => o !== opt)); }} tabIndex={-1} />
+                    <span className="text-sm text-medical-800">{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </SubSection>
+
+            {/* Tái khám + Chuyên khoa */}
+            <SubSection title="Tái khám">
+              <RadioGroup name="taiKham" options={CONFIG.taiKhamOptions} selected={formData.taiKham} fieldKey="taiKham" updateField={updateField} inline={true} />
+            </SubSection>
+            <SubSection title="Khám thêm chuyên khoa">
+              <CheckboxGroup options={CONFIG.khamThemChuyenKhoaOptions} selected={formData.khamThemChuyenKhoa || []} fieldKey="khamThemChuyenKhoa" updateField={updateField} columns={3} />
+            </SubSection>
+
+            {/* Khác */}
+            <SubSection title="Khác">
+              <div className="space-y-2">
+                {CONFIG.khamKhacOptions.map((opt) => (
+                  <label key={opt} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${(formData.khamKhac || []).includes(opt) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+                    <input type="checkbox" checked={(formData.khamKhac || []).includes(opt)} onChange={(e) => { const cur = formData.khamKhac || []; updateField('khamKhac', e.target.checked ? [...cur, opt] : cur.filter(o => o !== opt)); }} tabIndex={-1} />
+                    <span className="text-sm text-medical-800">{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </SubSection>
+
+            {/* Tập trung */}
+            <SubSection title="Tập trung">
+              <div className="space-y-2">
+                {CONFIG.tapTrungOptions.map((opt) => (
+                  <label key={opt} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${(formData.tapTrung || []).includes(opt) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+                    <input type="checkbox" checked={(formData.tapTrung || []).includes(opt)} onChange={(e) => { const cur = formData.tapTrung || []; updateField('tapTrung', e.target.checked ? [...cur, opt] : cur.filter(o => o !== opt)); }} tabIndex={-1} />
+                    <span className="text-sm text-medical-800">{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </SubSection>
+
+            {/* Hồ sơ thủ tục */}
+            <SubSection title="Hồ sơ thủ tục">
+              <div className="space-y-2">
+                {CONFIG.hoSoThuTucOptions.map((opt) => (
+                  <label key={opt} className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all duration-200 min-h-[44px] ${(formData.hoSoThuTuc || []).includes(opt) ? 'bg-medical-50 border-medical-500 shadow-medical' : 'bg-white border-medical-100 hover:border-medical-300 hover:shadow-card'}`}>
+                    <input type="checkbox" checked={(formData.hoSoThuTuc || []).includes(opt)} onChange={(e) => { const cur = formData.hoSoThuTuc || []; updateField('hoSoThuTuc', e.target.checked ? [...cur, opt] : cur.filter(o => o !== opt)); }} tabIndex={-1} />
+                    <span className="text-sm text-medical-800">{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </SubSection>
+
           </div>
         </SectionCard>
       </div>
@@ -757,13 +1004,60 @@
 
     // MAIN APP
     function MedicalExamApp() {
-      const [formData, setFormData] = useState({});
+      const [formData, setFormData] = useState(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : {};
+        } catch (error) {
+          return {};
+        }
+      });
       const [activeMainTab, setActiveMainTab] = useState('tienCan');
       const [showOutput, setShowOutput] = useState(false);
+      const [showResetConfirm, setShowResetConfirm] = useState(false);
+      const [isGenerating, setIsGenerating] = useState(false);
       const [outputText, setOutputText] = useState('');
+      const [toast, setToast] = useState(null);
+      const [saveStatus, setSaveStatus] = useState('');
+      const toastTimerRef = useRef(null);
+      const saveTimerRef = useRef(null);
+      const firstSaveRef = useRef(true);
+
+      const showToast = useCallback((message, type = 'success') => {
+        setToast({ message, type });
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = window.setTimeout(() => setToast(null), 2200);
+      }, []);
 
       const updateField = useCallback((key, value) => { setFormData(prev => ({ ...prev, [key]: value })); }, []);
-      const resetForm = useCallback(() => { if (window.confirm('Bạn có chắc muốn xóa tất cả dữ liệu đã nhập?')) { setFormData({}); setOutputText(''); setShowOutput(false); } }, []);
+      const requestReset = useCallback(() => { setShowResetConfirm(true); }, []);
+      const resetForm = useCallback(() => {
+        setFormData({});
+        setOutputText('');
+        setShowOutput(false);
+        setShowResetConfirm(false);
+        localStorage.removeItem(STORAGE_KEY);
+        showToast('Đã xóa dữ liệu nhập.', 'warning');
+      }, [showToast]);
+
+      React.useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+          if (!firstSaveRef.current) {
+            setSaveStatus('Đã lưu tự động');
+            window.clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = window.setTimeout(() => setSaveStatus(''), 1800);
+          }
+          firstSaveRef.current = false;
+        } catch (error) {
+          setSaveStatus('Không thể lưu tự động');
+        }
+      }, [formData]);
+
+      React.useEffect(() => () => {
+        window.clearTimeout(toastTimerRef.current);
+        window.clearTimeout(saveTimerRef.current);
+      }, []);
 
       // Keyboard shortcuts for tab navigation
       React.useEffect(() => {
@@ -771,9 +1065,10 @@
           if (e.ctrlKey || e.metaKey) {
             switch(e.key) {
               case '1': e.preventDefault(); setActiveMainTab('tienCan'); break;
-              case '2': e.preventDefault(); setActiveMainTab('kham'); break;
-              case '3': e.preventDefault(); setActiveMainTab('chiDinh'); break;
-              case '4': e.preventDefault(); setActiveMainTab('ketQua'); break;
+              case '2': e.preventDefault(); setActiveMainTab('benhSu'); break;
+              case '3': e.preventDefault(); setActiveMainTab('kham'); break;
+              case '4': e.preventDefault(); setActiveMainTab('chiDinh'); break;
+              case '5': e.preventDefault(); setActiveMainTab('ketQua'); break;
             }
           }
         };
@@ -800,13 +1095,15 @@
           return val && val.toString().trim() !== '';
         }).length;
         
-        const tienCanFields = ['thuTu1', 'thuTu2', 'cachSinh', 'tuoiThai', 'cnls', 'batThuongSauSinh', 'bietDi', 'bietNoi', 'tinhTrangKham', 'songVoi', 'loLang'];
+        const tienCanFields = ['thuTu1', 'thuTu2', 'cachSinh', 'tuoiThai', 'cnls', 'batThuongSauSinh', 'bietDi', 'bietNoi', 'tinhTrangKham', 'songVoi'];
+        const benhSuFields = ['loLang', 'pvDapUngTen', 'pvTuongTac', 'pvGiaoTiepMat', 'pvChoiVoiNguoiKhac', 'hanhViLapLai', 'bamViuThoiQuen', 'soThichHanChe'];
         const khamFields = ['nepVao', 'danhGiaKhiTuChoi', 'hanhViKham', 'khamDapUngTen', 'khamTheHienCamXuc', 'khamTuongTacNguoiKham', 'khamTiepXucMat', 'khamChiNgonTro', 'khamChuYChung', 'khamBieuCam', 'khamHopTac', 'khamChoiGiaBo', 'khamChoiLuanPhien', 'khamSayMeChoi'];
-        const chiDinhFields = ['openADHDPH', 'openADHDGV', 'openNEMI', 'openWISC'];
-        const ketQuaFields = ['chanDoan', 'canThiepHocTap', 'huongDanPH', 'taiKham'];
+        const chiDinhFields = ['openADHDPH', 'openADHDGV', 'openNEMI', 'openWISC', 'openATEC'];
+        const ketQuaFields = ['chanDoan', 'hocLuaChon', 'huongDanPH', 'taiKham'];
         
         return {
           tienCan: Math.round((countFilled(tienCanFields) / tienCanFields.length) * 100),
+          benhSu: Math.round((countFilled(benhSuFields) / benhSuFields.length) * 100),
           kham: Math.round((countFilled(khamFields) / khamFields.length) * 100),
           chiDinh: Math.round((countFilled(chiDinhFields) / chiDinhFields.length) * 100),
           ketQua: Math.round((countFilled(ketQuaFields) / ketQuaFields.length) * 100)
@@ -815,7 +1112,7 @@
 
       const generateOutput = useCallback(() => {
         let lines = [];
-        let hasTienCan = false, hasKham = false, hasChiDinh = false, hasChanDoan = false, hasDieuTri = false;
+        let hasTienCan = false, hasBenhSu = false, hasKham = false, hasChiDinh = false, hasChanDoan = false, hasDieuTri = false;
 
         // TIỀN CĂN
         let tienCanLines = [];
@@ -827,6 +1124,8 @@
         else if (formData.tuoiThai === 'non tháng' && formData.soTuanThai) birthParts.push(`thai ${formData.soTuanThai} tuần`);
         if (formData.cnls) birthParts.push(`CNLS: ${formData.cnls} kg`);
         if (birthParts.length > 0) phatTrienLines.push('- ' + birthParts.join(', ') + '.');
+        if (formData.khongBatThuongLucSinh) phatTrienLines.push('- Không ghi nhận bất thường lúc sinh.');
+        if (formData.coBatThuongLucSinh) phatTrienLines.push(`- Bất thường lúc sinh: ${formData.batThuongLucSinhDetail || '...'}`);
         if (formData.batThuongSauSinh) phatTrienLines.push('- Không ghi nhận bất thường sau sinh.');
         let devParts = [];
         if (formData.bietDi) devParts.push(`Biết đi lúc ${formData.bietDi} tháng`);
@@ -834,7 +1133,8 @@
         else if (formData.bietNoi === 'chưa biết nói') devParts.push('chưa biết nói');
         if (devParts.length > 0) phatTrienLines.push('- ' + devParts.join(', ') + '.');
         if (formData.benhManTinh) phatTrienLines.push(`- Bệnh mãn tính đang điều trị: ${formData.benhManTinh}`);
-        if (phatTrienLines.length > 0) { tienCanLines.push('1. Quá trình phát triển:'); tienCanLines = tienCanLines.concat(phatTrienLines); }
+        if (formData.hienDangHoc) phatTrienLines.push(`- Hiện đang học: ${formData.hienDangHoc}${formData.hienDangHocThoiGian ? `, thời gian ${formData.hienDangHocThoiGian} tháng` : ''}`);
+        if (phatTrienLines.length > 0) { tienCanLines.push('Quá trình phát triển:'); tienCanLines = tienCanLines.concat(phatTrienLines); }
 
         let benhSuLines = [];
         if (formData.tinhTrangKham === 'chuaKham') { benhSuLines.push('- Chưa khám lần nào.'); }
@@ -842,8 +1142,14 @@
           let khamParts = [];
           if (formData.tuoiKham) khamParts.push(`Lúc ${formData.tuoiKham} tháng`);
           if (formData.noiKham?.length > 0) khamParts.push(`khám tại ${formData.noiKham.join(', ')}`);
-          if (formData.lyDoKham?.length > 0) khamParts.push(`vì ${formData.lyDoKham.join(', ')}`);
-          if (formData.chanDoanTruoc?.length > 0) khamParts.push(`chẩn đoán: ${formData.chanDoanTruoc.join(', ')}`);
+          let ldParts = [];
+          if (formData.lyDoKham?.length > 0) ldParts = ldParts.concat(formData.lyDoKham);
+          if (formData.lyDoKhamKhac) ldParts.push(formData.lyDoKhamKhac);
+          if (ldParts.length > 0) khamParts.push(`vì ${ldParts.join(', ')}`);
+          let cdParts = [];
+          if (formData.chanDoanTruoc?.length > 0) cdParts = cdParts.concat(formData.chanDoanTruoc);
+          if (formData.chanDoanTruocKhac) cdParts.push(formData.chanDoanTruocKhac);
+          if (cdParts.length > 0) khamParts.push(`chẩn đoán: ${cdParts.join(', ')}`);
           if (khamParts.length > 0) benhSuLines.push('- ' + khamParts.join('; ') + '.');
           if (formData.sauKham) {
             let canThiepParts = ['Sau khám: học trường hòa nhập và học can thiệp'];
@@ -852,7 +1158,7 @@
             benhSuLines.push('- ' + canThiepParts.join(', ') + '.');
           }
         }
-        if (benhSuLines.length > 0) { tienCanLines.push('2. Bệnh sử:'); tienCanLines = tienCanLines.concat(benhSuLines); }
+        if (benhSuLines.length > 0) { tienCanLines.push('Tiền sử khám tâm lý:'); tienCanLines = tienCanLines.concat(benhSuLines); }
 
         let moiTruongLines = [];
         if (formData.songVoi?.length > 0) moiTruongLines.push(`- Bé đang sống với ${formData.songVoi.join(', ')}.`);
@@ -861,12 +1167,17 @@
         if (formData.screenDaNgung) screenParts.push(`đã ngừng ${formData.screenDaNgung} tháng nay`);
         if (formData.screenHienTai) screenParts.push(`hiện tại: ${formData.screenHienTai} giờ mỗi ngày`);
         if (screenParts.length > 0) moiTruongLines.push(`- Thời gian tiếp xúc màn hình: ${screenParts.join('. ')}.`);
-        if (moiTruongLines.length > 0) { tienCanLines.push('3. Môi trường sống:'); tienCanLines = tienCanLines.concat(moiTruongLines); }
+        if (moiTruongLines.length > 0) { tienCanLines.push('Môi trường sống:'); tienCanLines = tienCanLines.concat(moiTruongLines); }
 
+        if (tienCanLines.length > 0) { hasTienCan = true; lines.push('TIỀN CĂN'); lines = lines.concat(tienCanLines); }
+
+        // BỆNH SỬ (tab mới)
+        let benhSuTabLines = [];
         let loLangLines = [];
         if (formData.loLang?.length > 0) { formData.loLang.forEach(item => loLangLines.push(`- ${item}`)); }
         if (formData.loLangKhac) loLangLines.push(`- ${formData.loLangKhac}`);
-        if (loLangLines.length > 0) { tienCanLines.push('4. Các lo lắng hiện tại của phụ huynh:'); tienCanLines = tienCanLines.concat(loLangLines); }
+        if (formData.loLangNote) loLangLines.push(`- ${formData.loLangNote}`);
+        if (loLangLines.length > 0) { benhSuTabLines.push('Các lo lắng hiện tại của phụ huynh:'); benhSuTabLines = benhSuTabLines.concat(loLangLines); }
 
         let phongVanLines = [];
         let aLines = [];
@@ -874,27 +1185,37 @@
         if (formData.pvTuongTac) aLines.push(`Khởi đầu tương tác: ${formData.pvTuongTac}`);
         if (formData.pvKhoe) aLines.push(`Khoe và gây chú ý: ${formData.pvKhoe}`);
         if (formData.pvCuoiXaHoi) aLines.push(`Cười xã hội: ${formData.pvCuoiXaHoi}`);
-        if (aLines.length > 0) { phongVanLines.push('a. Tương tác xã hội - cảm xúc'); aLines.forEach(l => phongVanLines.push(`- ${l}`)); }
+        if (formData.pvTuongTacXaHoiNote) aLines.push(`Ghi chú: ${formData.pvTuongTacXaHoiNote}`);
+        if (aLines.length > 0) { phongVanLines.push('Tương tác xã hội - cảm xúc'); aLines.forEach(l => phongVanLines.push(`- ${l}`)); }
         let bLines = [];
         if (formData.pvGiaoTiepMat) bLines.push(`Giao tiếp bằng mắt/cử chỉ: ${formData.pvGiaoTiepMat}`);
         if (formData.pvBieuCam) bLines.push(`Biểu cảm khuôn mặt: ${formData.pvBieuCam}`);
         if (formData.pvNhanBieuCam) bLines.push(`Nhận ra biểu cảm người khác: ${formData.pvNhanBieuCam}`);
-        if (bLines.length > 0) { phongVanLines.push('b. Hành vi giao tiếp phi ngôn ngữ'); bLines.forEach(l => phongVanLines.push(`- ${l}`)); }
+        if (formData.pvGiaoTiepNote) bLines.push(`Ghi chú: ${formData.pvGiaoTiepNote}`);
+        if (bLines.length > 0) { phongVanLines.push('Hành vi giao tiếp phi ngôn ngữ'); bLines.forEach(l => phongVanLines.push(`- ${l}`)); }
         let cLines = [];
         if (formData.pvChoiVoiNguoiKhac) cLines.push(`Quan tâm chơi với người khác: ${formData.pvChoiVoiNguoiKhac}`);
         if (formData.pvTroChoiNhom) cLines.push(`Tham gia trò chơi nhóm/giả tưởng: ${formData.pvTroChoiNhom}`);
         if (formData.pvChoiMotMinh) cLines.push(`Điều chỉnh hành vi theo bối cảnh: ${formData.pvChoiMotMinh}`);
-        if (cLines.length > 0) { phongVanLines.push('c. Phát triển, duy trì và hiểu mối quan hệ'); cLines.forEach(l => phongVanLines.push(`- ${l}`)); }
-        if (formData.hanhViLapLai?.length > 0) phongVanLines.push(`d. Hành vi lặp lại: ${formData.hanhViLapLai.join(', ')}`);
-        if (formData.bamViuThoiQuen?.length > 0) phongVanLines.push(`e. Bám víu thói quen: ${formData.bamViuThoiQuen.join(', ')}`);
-        let fParts = [];
-        if (formData.soThichHanChe?.length > 0) fParts = fParts.concat(formData.soThichHanChe);
+        if (formData.pvPhatTrienNote) cLines.push(`Ghi chú: ${formData.pvPhatTrienNote}`);
+        if (cLines.length > 0) { phongVanLines.push('Phát triển, duy trì và hiểu mối quan hệ'); cLines.forEach(l => phongVanLines.push(`- ${l}`)); }
+        let hbLRParts = [];
+        let dPart = '', ePart = '';
+        let dItems = [...(formData.hanhViLapLai || [])]; if (formData.hanhViLapLaiNote) dItems.push(formData.hanhViLapLaiNote);
+        let eItems = [...(formData.bamViuThoiQuen || [])]; if (formData.bamViuNote) eItems.push(formData.bamViuNote);
+        if (dItems.length > 0) dPart = `Hành vi lặp lại: ${dItems.join(', ')}`;
+        if (eItems.length > 0) ePart = `Bám víu thói quen: ${eItems.join(', ')}`;
+        let fParts = [...(formData.soThichHanChe || [])];
         if (formData.soThichKhac) fParts.push(formData.soThichKhac);
-        if (fParts.length > 0) phongVanLines.push(`f. Sở thích hạn chế: ${fParts.join(', ')}.`);
-        if (formData.phanUngGiacQuan?.length > 0) phongVanLines.push(`g. Phản ứng giác quan: ${formData.phanUngGiacQuan.join(', ')}.`);
-        if (formData.thoaiLuiKyNang || formData.thoaiLuiLuc) phongVanLines.push(`h. Thoái lùi kỹ năng: ${formData.thoaiLuiKyNang || '...'} lúc ${formData.thoaiLuiLuc || '...'} tháng.`);
-        if (phongVanLines.length > 0) { tienCanLines.push('5. Phỏng vấn thêm:'); tienCanLines = tienCanLines.concat(phongVanLines); }
-        if (tienCanLines.length > 0) { hasTienCan = true; lines.push('TIỀN CĂN'); lines = lines.concat(tienCanLines); }
+        if (formData.soThichNote) fParts.push(formData.soThichNote);
+        let fPart = fParts.length > 0 ? `Sở thích hạn chế: ${fParts.join(', ')}` : '';
+        let gItems = [...(formData.phanUngGiacQuan || [])]; if (formData.phanUngNote) gItems.push(formData.phanUngNote);
+        let gPart = gItems.length > 0 ? `Phản ứng giác quan: ${gItems.join(', ')}` : '';
+        let hPart = (formData.thoaiLuiKyNang || formData.thoaiLuiLuc) ? `Thoái lùi kỹ năng: ${formData.thoaiLuiKyNang || '...'} lúc ${formData.thoaiLuiLuc || '...'} tháng${formData.thoaiLuiNote ? '. ' + formData.thoaiLuiNote : ''}` : '';
+        let combinedParts = [dPart, ePart, fPart, gPart, hPart].filter(Boolean);
+        if (combinedParts.length > 0) phongVanLines.push(combinedParts.join('. ') + '.');
+        if (phongVanLines.length > 0) { benhSuTabLines.push('Phỏng vấn thêm:'); benhSuTabLines = benhSuTabLines.concat(phongVanLines); }
+        if (benhSuTabLines.length > 0) { hasBenhSu = true; if (hasTienCan) lines.push(''); lines.push('BỆNH SỬ'); lines = lines.concat(benhSuTabLines); }
 
         // KHÁM
         let khamLines = [];
@@ -904,30 +1225,30 @@
         if (formData.hanhViKham?.length > 0) choiTuDoLines.push(`- Hành vi: ${formData.hanhViKham.join(', ')}`);
         if (formData.choiDoChoiKham?.length > 0) choiTuDoLines.push(`- Chơi đồ chơi không đúng chức năng: ${formData.choiDoChoiKham.join(', ')}`);
         if (formData.chuDongTuongTacKham) choiTuDoLines.push(`- Tương tác: ${formData.chuDongTuongTacKham}`);
-        if (choiTuDoLines.length > 0) { khamLines.push('1. Trẻ chơi tự do'); khamLines = khamLines.concat(choiTuDoLines); }
+        if (choiTuDoLines.length > 0) { khamLines.push('Trẻ chơi tự do'); khamLines = khamLines.concat(choiTuDoLines); }
 
         let tuongTacLines = [];
         let kaLines = [];
         if (formData.khamDapUngTen) kaLines.push(`Đáp ứng tên gọi: ${formData.khamDapUngTen}`);
         if (formData.khamTheHienCamXuc) kaLines.push(`Thể hiện cảm xúc: ${formData.khamTheHienCamXuc}`);
         if (formData.khamTuongTacNguoiKham) kaLines.push(`Tương tác với người khám: ${formData.khamTuongTacNguoiKham}`);
-        if (kaLines.length > 0) { tuongTacLines.push('a. Tương tác xã hội - cảm xúc'); kaLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
+        if (kaLines.length > 0) { tuongTacLines.push('Tương tác xã hội - cảm xúc'); kaLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
         let kbParts = [];
         if (formData.khamTiepXucMat) kbParts.push(`Tiếp xúc mắt với người khám: ${formData.khamTiepXucMat}`);
         if (formData.khamChiNgonTro) kbParts.push(`Chỉ bằng ngón trỏ: ${formData.khamChiNgonTro}`);
         if (formData.khamChuYChung) kbParts.push(`Khả năng chú ý chung: ${formData.khamChuYChung}`);
-        if (kbParts.length > 0 || formData.khamBieuCam) { tuongTacLines.push('b. Hành vi giao tiếp phi ngôn ngữ'); if (kbParts.length > 0) tuongTacLines.push(`- ${kbParts.join('; ')}`); if (formData.khamBieuCam) tuongTacLines.push(`- Biểu cảm khuôn mặt: ${formData.khamBieuCam}`); }
+        if (kbParts.length > 0 || formData.khamBieuCam) { tuongTacLines.push('Hành vi giao tiếp phi ngôn ngữ'); if (kbParts.length > 0) tuongTacLines.push(`- ${kbParts.join('; ')}`); if (formData.khamBieuCam) tuongTacLines.push(`- Biểu cảm khuôn mặt: ${formData.khamBieuCam}`); }
         let kcLines = [];
         if (formData.khamHopTac) kcLines.push(`Hợp tác trong trò chơi: ${formData.khamHopTac}`);
         if (formData.khamChoiGiaBo) kcLines.push(`Chơi giả bộ: ${formData.khamChoiGiaBo}`);
         if (formData.khamChoiLuanPhien) kcLines.push(`Chơi luân phiên: ${formData.khamChoiLuanPhien.toLowerCase()}`);
         if (formData.khamSayMeChoi) kcLines.push(`Chơi cùng người khám: ${formData.khamSayMeChoi}`);
-        if (kcLines.length > 0) { tuongTacLines.push('c. Phát triển, duy trì và hiểu mối quan hệ'); kcLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
+        if (kcLines.length > 0) { tuongTacLines.push('Phát triển, duy trì và hiểu mối quan hệ'); kcLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
         let kdParts = [];
         if (formData.khamHanhViBatThuong?.length > 0) kdParts = kdParts.concat(formData.khamHanhViBatThuong);
         if (formData.khamHanhViBatThuongKhac) kdParts.push(formData.khamHanhViBatThuongKhac);
-        if (kdParts.length > 0) tuongTacLines.push(`d. Hành vi bất thường: trẻ ${kdParts.join(', ')}.`);
-        if (formData.khamKhongBatThuong) { if (kdParts.length === 0) tuongTacLines.push('d. Hành vi bất thường:'); tuongTacLines.push('- Người khám không quan sát thấy trẻ có hành vi bất thường trong quá trình đánh giá.'); }
+        if (kdParts.length > 0) tuongTacLines.push(`Hành vi bất thường: trẻ ${kdParts.join(', ')}.`);
+        if (formData.khamKhongBatThuong) { if (kdParts.length === 0) tuongTacLines.push('Hành vi bất thường:'); tuongTacLines.push('- Người khám không quan sát thấy trẻ có hành vi bất thường trong quá trình đánh giá.'); }
         if (formData.openDanhGiaTapTrung) {
           let keLines = [];
           if (formData.danhGiaMonAn) keLines.push(`Trẻ trả lời được các món đã ăn vào tối hôm trước: ${formData.danhGiaMonAn}`);
@@ -936,7 +1257,7 @@
           if (formData.danhGiaPhepTru) keLines.push(`Thực hiện phép trừ 100-7-7-7-7: ${formData.danhGiaPhepTru}`);
           if (formData.lapLaiSo) keLines.push(`Lặp lại được ${formData.lapLaiSo} số`);
           if (formData.daoSo) keLines.push(`Đảo được ${formData.daoSo} số`);
-          if (keLines.length > 0) { tuongTacLines.push('e. Đánh giá về mức độ tập trung'); keLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
+          if (keLines.length > 0) { tuongTacLines.push('Đánh giá về mức độ tập trung'); keLines.forEach(l => tuongTacLines.push(`- ${l}`)); }
         }
         if (formData.openDanhGiaMocPhatTrien) {
           let kfLines = [];
@@ -946,6 +1267,7 @@
           if (formData.ngonNguDienDat) mocPTParts.push(`Ngôn ngữ diễn đạt: ${formData.ngonNguDienDat} tháng`);
           if (formData.giaiQuyetVanDe) mocPTParts.push(`Giải quyết vấn đề: ${formData.giaiQuyetVanDe} tháng`);
           if (formData.xaHoi) mocPTParts.push(`Xã hội: ${formData.xaHoi} tháng`);
+          if (formData.tuLap) mocPTParts.push(`Tự lập: ${formData.tuLap} tháng`);
           if (mocPTParts.length > 0) kfLines.push(`* Đánh giá nhanh các lĩnh vực phát triển: ${mocPTParts.join('; ')}`);
           let caputeParts = [];
           if (formData.tuoiTranR) caputeParts.push(`Tuổi trần ngôn ngữ cảm nhận (R) = ${formData.tuoiTranR} tháng`);
@@ -956,23 +1278,34 @@
           if (formData.tuoiThang && formData.cat) caputeParts.push(`CAT DQ = ${formData.cat}/${formData.tuoiThang} x 100 = ${caputeScores.catDQ}%`);
           if (formData.tuoiThang && formData.clams && formData.cat) caputeParts.push(`Full Scale DQ = (${caputeScores.clamsDQ} + ${caputeScores.catDQ})/2 = ${caputeScores.fullScaleDQ}%`);
           if (caputeParts.length > 0) { kfLines.push('* Đánh giá theo thang Capute:'); caputeParts.forEach(p => kfLines.push(`   - ${p}`)); }
-          if (kfLines.length > 0) { tuongTacLines.push('f. Người khám đánh giá các mốc phát triển của trẻ'); tuongTacLines = tuongTacLines.concat(kfLines); }
+          if (kfLines.length > 0) { tuongTacLines.push('Người khám đánh giá các mốc phát triển của trẻ'); tuongTacLines = tuongTacLines.concat(kfLines); }
         }
-        if (tuongTacLines.length > 0) { khamLines.push('2. Tương tác với trẻ'); khamLines = khamLines.concat(tuongTacLines); }
-        if (khamLines.length > 0) { hasKham = true; if (hasTienCan) lines.push(''); lines.push('KHÁM'); lines = lines.concat(khamLines); }
+        if (tuongTacLines.length > 0) { khamLines.push('Tương tác với trẻ'); khamLines = khamLines.concat(tuongTacLines); }
+        if (khamLines.length > 0) { hasKham = true; if (hasTienCan || hasBenhSu) lines.push(''); lines.push('KHÁM'); lines = lines.concat(khamLines); }
 
         // KẾT QUẢ CHỈ ĐỊNH
         let chiDinhLines = [];
-        if (formData.openADHDPH && (formData.adhdPHKemTapTrung || formData.adhdPHTangDong || formData.adhdPHAnhHuong)) {
-          chiDinhLines.push('1. Phiếu ADHD phụ huynh:');
+        if (formData.openATEC && (formData.atecNgonNgu || formData.atecTuongTac || formData.atecGiacQuan || formData.atecSucKhoe)) {
+          chiDinhLines.push('- Test ATEC');
+          if (formData.atecNgonNgu) chiDinhLines.push(`   Âm/lời nói/ngôn ngữ/giao tiếp: ${formData.atecNgonNgu}`);
+          if (formData.atecTuongTac) chiDinhLines.push(`   Tương tác xã hội: ${formData.atecTuongTac}`);
+          if (formData.atecGiacQuan) chiDinhLines.push(`   Giác quan/nhận thức: ${formData.atecGiacQuan}`);
+          if (formData.atecSucKhoe) chiDinhLines.push(`   Vấn đề sức khỏe/hành vi/thể chất: ${formData.atecSucKhoe}`);
+        }
+        if (formData.openADHDPH && (formData.adhdPHKemTapTrung || formData.adhdPHTangDong || formData.adhdPHODD || formData.adhdPHLoAu || formData.adhdPHAnhHuong)) {
+          chiDinhLines.push('Phiếu ADHD phụ huynh:');
           if (formData.adhdPHKemTapTrung) chiDinhLines.push(`- Biểu hiện kém tập trung = ${formData.adhdPHKemTapTrung}/9`);
           if (formData.adhdPHTangDong) chiDinhLines.push(`- Biểu hiện tăng động = ${formData.adhdPHTangDong}/9`);
+          if (formData.adhdPHODD) chiDinhLines.push(`- Rối loạn thách thức chống đối/Rối loạn cư xử = ${formData.adhdPHODD}/22`);
+          if (formData.adhdPHLoAu) chiDinhLines.push(`- Lo âu/Trầm cảm = ${formData.adhdPHLoAu}/7`);
           if (formData.adhdPHAnhHuong) chiDinhLines.push(`- Ảnh hưởng chức năng: ${formData.adhdPHAnhHuong}`);
         }
-        if (formData.openADHDGV && (formData.adhdGVKemTapTrung || formData.adhdGVTangDong || formData.adhdGVAnhHuong)) {
-          chiDinhLines.push('2. Phiếu ADHD giáo viên:');
+        if (formData.openADHDGV && (formData.adhdGVKemTapTrung || formData.adhdGVTangDong || formData.adhdGVODD || formData.adhdGVLoAu || formData.adhdGVAnhHuong)) {
+          chiDinhLines.push('Phiếu ADHD giáo viên:');
           if (formData.adhdGVKemTapTrung) chiDinhLines.push(`- Biểu hiện kém tập trung = ${formData.adhdGVKemTapTrung}/9`);
           if (formData.adhdGVTangDong) chiDinhLines.push(`- Biểu hiện tăng động = ${formData.adhdGVTangDong}/9`);
+          if (formData.adhdGVODD) chiDinhLines.push(`- Rối loạn thách thức chống đối/Rối loạn cư xử = ${formData.adhdGVODD}/10`);
+          if (formData.adhdGVLoAu) chiDinhLines.push(`- Lo âu/Trầm cảm = ${formData.adhdGVLoAu}/7`);
           if (formData.adhdGVAnhHuong) chiDinhLines.push(`- Ảnh hưởng chức năng: ${formData.adhdGVAnhHuong}`);
         }
         if (formData.openNEMI) {
@@ -1021,55 +1354,75 @@
             }
           }
         }
-        if (chiDinhLines.length > 0) { hasChiDinh = true; if (hasTienCan || hasKham) lines.push(''); lines.push('KẾT QUẢ CHỈ ĐỊNH'); lines = lines.concat(chiDinhLines); }
+        if (chiDinhLines.length > 0) { hasChiDinh = true; if (hasTienCan || hasBenhSu || hasKham) lines.push(''); lines.push('KẾT QUẢ CHỈ ĐỊNH'); lines = lines.concat(chiDinhLines); }
 
         // CHẨN ĐOÁN
         let chanDoanLines = [];
         if (formData.chanDoan?.length > 0) chanDoanLines.push(formData.chanDoan.join(' + '));
         if (formData.chanDoanKhac) chanDoanLines.push(formData.chanDoanKhac);
-        if (chanDoanLines.length > 0) { hasChanDoan = true; if (hasTienCan || hasKham || hasChiDinh) lines.push(''); lines.push('CHẨN ĐOÁN'); lines = lines.concat(chanDoanLines); }
+        if (chanDoanLines.length > 0) { hasChanDoan = true; if (hasTienCan || hasBenhSu || hasKham || hasChiDinh) lines.push(''); lines.push('CHẨN ĐOÁN'); lines = lines.concat(chanDoanLines); }
 
         // ĐIỀU TRỊ/CAN THIỆP
         let dieuTriLines = [];
-        if (formData.canThiepHocTap) dieuTriLines.push('- Trẻ cần được học can thiệp với chương trình cá nhân phù hợp tuổi phát triển, 1 giờ/ngày x 5 ngày + học hòa nhập');
+        // Học
+        if (formData.hocLuaChon) dieuTriLines.push(`- ${formData.hocLuaChon}`);
+        else if (formData.hocTuNhap) dieuTriLines.push(`- ${formData.hocTuNhap}`);
+        // Tiền ngôn ngữ - hướng dẫn PH
         if (formData.huongDanPH?.length > 0) dieuTriLines.push(`- Phụ huynh tương tác với trẻ theo hướng dẫn: ${formData.huongDanPH.join(', ')}`);
+        if (formData.tienNgonNguExtra?.length > 0) formData.tienNgonNguExtra.forEach(item => dieuTriLines.push(`- ${item}`));
+        // Tái khám
         if (formData.taiKham) dieuTriLines.push(`- Tái khám: ${formData.taiKham}`);
+        // Chuyên khoa
         if (formData.khamThemChuyenKhoa?.length > 0) dieuTriLines.push(`- Khám thêm chuyên khoa: ${formData.khamThemChuyenKhoa.join(', ')}`);
-        if (formData.veSinhGiacNgu) dieuTriLines.push('- Vệ sinh giấc ngủ: 2 tiếng trước khi đi ngủ không ăn quá no, không để quá đói, không xem tivi điện thoại, không vận động mạnh.');
-        if (formData.photLoHanhVi) dieuTriLines.push('- Phớt lờ các hành vi ăn vạ: không nhìn, không sờ, không nói chuyện, không đáp ứng yêu cầu vô lý của trẻ. Cần có sự đồng bộ giữa các thành viên trong gia đình đặc biệt là ông bà.');
-        if (formData.bangThuong) dieuTriLines.push('- Thiết lập bảng thưởng; khen nhiều hơn chê.');
-        if (formData.chuYDienThoai) dieuTriLines.push('- Chú ý điện thoại, nhận bệnh án tóm tắt sau 1 tháng qua đường bưu điện. Gọi tổng đài nếu sau 1 tháng chưa nhận được.');
-        if (formData.mangTheoCCCD) dieuTriLines.push('- Mang theo căn cước công dân đến quầy thông tin ở tầng trệt để được hướng dẫn nhận bệnh án tóm tắt sau 3 giờ.');
-        if (dieuTriLines.length > 0) { hasDieuTri = true; if (hasTienCan || hasKham || hasChiDinh || hasChanDoan) lines.push(''); lines.push('ĐIỀU TRỊ/CAN THIỆP'); lines = lines.concat(dieuTriLines); }
+        // Khác
+        if (formData.khamKhac?.length > 0) formData.khamKhac.forEach(item => dieuTriLines.push(`- ${item}`));
+        // Tập trung
+        if (formData.tapTrung?.length > 0) formData.tapTrung.forEach(item => dieuTriLines.push(`- ${item}`));
+        // Hồ sơ thủ tục
+        if (formData.hoSoThuTuc?.length > 0) formData.hoSoThuTuc.forEach(item => dieuTriLines.push(`- ${item}`));
+        if (dieuTriLines.length > 0) { hasDieuTri = true; if (hasTienCan || hasBenhSu || hasKham || hasChiDinh || hasChanDoan) lines.push(''); lines.push('ĐIỀU TRỊ/CAN THIỆP'); lines = lines.concat(dieuTriLines); }
 
         setOutputText(lines.join('\n'));
         setShowOutput(true);
       }, [formData, caputeScores]);
 
+      const handleGenerateOutput = useCallback(() => {
+        if (isGenerating) return;
+        setIsGenerating(true);
+        window.setTimeout(() => {
+          generateOutput();
+          setIsGenerating(false);
+          showToast('Đã tạo kết quả.', 'success');
+        }, 260);
+      }, [generateOutput, isGenerating, showToast]);
+
       const copyToClipboard = useCallback(() => {
-        navigator.clipboard.writeText(outputText).then(() => { alert('Đã sao chép vào clipboard!'); });
-      }, [outputText]);
+        if (!navigator.clipboard) {
+          showToast('Trình duyệt chưa cho phép sao chép tự động.', 'warning');
+          return;
+        }
+        navigator.clipboard.writeText(outputText)
+          .then(() => { showToast('Đã sao chép vào clipboard.', 'success'); })
+          .catch(() => { showToast('Không thể sao chép tự động.', 'warning'); });
+      }, [outputText, showToast]);
 
       const exportToWord = useCallback(async () => {
-        const { Document, Packer, Paragraph, TextRun } = window.docx;
+        try {
+        const { Document, Packer, Paragraph, TextRun } = await loadDocx();
         const lines = outputText.split('\n');
         const children = [];
         lines.forEach((line) => {
           if (!line.trim()) { children.push(new Paragraph({ children: [] })); return; }
-          if (['TIỀN CĂN', 'KHÁM', 'KẾT QUẢ CHỈ ĐỊNH', 'CHẨN ĐOÁN', 'ĐIỀU TRỊ/CAN THIỆP'].includes(line)) {
+          if (['TIỀN CĂN', 'BỆNH SỬ', 'KHÁM', 'KẾT QUẢ CHỈ ĐỊNH', 'CHẨN ĐOÁN', 'ĐIỀU TRỊ/CAN THIỆP'].includes(line)) {
             children.push(new Paragraph({
               children: [new TextRun({ text: line, bold: true, size: 28, font: 'Times New Roman' })],
               spacing: { before: 300, after: 150 },
             }));
-          } else if (/^\d+\.\s/.test(line)) {
+          } else if (/^[A-ZÀ-Ỵa-zà-ỵ].+:$/.test(line) && !line.startsWith('-') && !line.startsWith('*')) {
+            // Subsection headers (lines ending with colon)
             children.push(new Paragraph({
               children: [new TextRun({ text: line, bold: true, size: 26, font: 'Times New Roman' })],
-              spacing: { before: 200, after: 100 },
-            }));
-          } else if (/^[a-z]\.\s/.test(line)) {
-            children.push(new Paragraph({
-              children: [new TextRun({ text: line, bold: true, size: 24, font: 'Times New Roman' })],
-              spacing: { before: 150, after: 80 },
+              spacing: { before: 180, after: 80 },
             }));
           } else if (line.startsWith('- ') || line.startsWith('• ')) {
             children.push(new Paragraph({
@@ -1118,45 +1471,58 @@
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-      }, [outputText]);
+        showToast('Đã tải file Word.', 'success');
+        } catch (error) {
+          showToast('Không thể tải Word lúc này. Vui lòng thử lại.', 'warning');
+        }
+      }, [outputText, showToast]);
 
       const tabs = [
         { id: 'tienCan', label: 'Tiền căn', icon: Icons.clipboard, shortLabel: 'TC', progress: tabProgress.tienCan },
+        { id: 'benhSu', label: 'Bệnh sử', icon: Icons.chat, shortLabel: 'BS', progress: tabProgress.benhSu },
         { id: 'kham', label: 'Khám', icon: Icons.stethoscope, shortLabel: 'K', progress: tabProgress.kham },
         { id: 'chiDinh', label: 'Chỉ định', icon: Icons.document, shortLabel: 'CĐ', progress: tabProgress.chiDinh },
         { id: 'ketQua', label: 'Kết quả khám', icon: Icons.chart, shortLabel: 'KQ', progress: tabProgress.ketQua },
       ];
+      const activeIndex = tabs.findIndex(tab => tab.id === activeMainTab);
+      const nextTab = activeIndex >= 0 ? tabs[activeIndex + 1] : null;
+      const goToNextTab = useCallback(() => {
+        if (!nextTab) return;
+        setActiveMainTab(nextTab.id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, [nextTab]);
 
       return (
         <div className="min-h-screen pb-8">
           {/* Floating Header */}
-          <header className="sticky top-0 z-50 mx-4 mt-4 bg-white/80 backdrop-blur-xl rounded-2xl shadow-medical-lg border border-white/20">
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-medical-500 to-health-500 rounded-xl flex items-center justify-center text-white shadow-medical">
+          <header className="sticky top-0 z-50 mx-2 sm:mx-4 mt-2 sm:mt-4 bg-white/90 backdrop-blur-xl rounded-2xl shadow-medical-lg border border-white/60">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-medical-500 to-health-500 rounded-lg flex items-center justify-center text-white shadow-medical flex-shrink-0">
                     {Icons.hospital}
                   </div>
-                  <div>
-                    <h1 className="font-heading text-xl md:text-2xl font-bold text-medical-800">Hỗ trợ Nhập liệu Thăm khám</h1>
+                  <div className="min-w-0">
+                    <h1 className="font-heading text-lg md:text-2xl font-bold text-medical-800 truncate">Hỗ trợ Nhập liệu Thăm khám</h1>
                     <p className="text-sm text-medical-600 hidden md:block">Phát triển Hành vi Nhi khoa</p>
+                    {saveStatus && <p className="text-xs text-health-700 hidden sm:flex items-center gap-1 mt-0.5">{Icons.checkCircle}{saveStatus}</p>}
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <button onClick={resetForm} aria-label="Xóa dữ liệu" className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all duration-200 border-2 border-red-100 hover:border-red-200 hover:shadow-md min-h-[44px]">
+                <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+                  <button onClick={requestReset} aria-label="Xóa dữ liệu" className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-all duration-200 border border-red-100 hover:border-red-200 hover:shadow-md min-h-[44px]">
                     {Icons.trash}
                     <span className="hidden md:inline font-medium">Xóa</span>
                   </button>
-                  <button onClick={generateOutput} aria-label="Tạo kết quả" className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-medical-500 to-medical-600 text-white rounded-xl hover:from-medical-600 hover:to-medical-700 transition-all duration-200 shadow-medical hover:shadow-medical-lg hover:scale-[1.02] min-h-[44px]">
+                  <button onClick={handleGenerateOutput} disabled={isGenerating} aria-label="Tạo kết quả" className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-medical-500 to-medical-600 text-white rounded-lg hover:from-medical-600 hover:to-medical-700 transition-all duration-200 shadow-medical hover:shadow-medical-lg disabled:opacity-70 disabled:cursor-wait min-h-[44px]">
                     {Icons.sparkles}
-                    <span className="font-semibold">Tạo kết quả</span>
+                    <span className="font-semibold">{isGenerating ? 'Đang tạo...' : 'Tạo kết quả'}</span>
                   </button>
                 </div>
               </div>
             </div>
             {/* Tab Navigation */}
-            <div className="px-4 pb-3">
-              <nav className="flex gap-2 bg-medical-50 p-1.5 rounded-xl" role="tablist">
+            <div className="px-3 sm:px-4 pb-3">
+              <nav className="tab-scroll flex gap-2 bg-medical-50 p-1.5 rounded-xl overflow-x-auto" role="tablist">
                 {tabs.map((tab, idx) => (
                   <button
                     key={tab.id}
@@ -1164,7 +1530,7 @@
                     role="tab"
                     aria-selected={activeMainTab === tab.id}
                     title={`Ctrl+${idx + 1} để chuyển nhanh`}
-                    className={`relative flex-1 flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 min-h-[48px] ${activeMainTab === tab.id ? 'bg-white text-medical-700 shadow-card' : 'text-medical-600 hover:text-medical-700 hover:bg-white/50'}`}
+                    className={`relative min-w-[88px] sm:min-w-0 sm:flex-1 flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 min-h-[48px] ${activeMainTab === tab.id ? 'bg-white text-medical-700 shadow-card' : 'text-medical-600 hover:text-medical-700 hover:bg-white/50'}`}
                   >
                     <div className="flex items-center gap-2">
                       <span className={activeMainTab === tab.id ? 'text-medical-500' : 'text-medical-400'}>{tab.icon}</span>
@@ -1172,8 +1538,8 @@
                       <span className="md:hidden text-xs">{tab.shortLabel}</span>
                     </div>
                     {tab.progress > 0 && (
-                      <div className="w-full h-1 bg-medical-100 rounded-full overflow-hidden mt-1">
-                        <div className="h-full bg-gradient-to-r from-medical-400 to-health-500 rounded-full transition-all duration-300" style={{ width: `${tab.progress}%` }} />
+                      <div className="w-full h-1 bg-white rounded-full overflow-hidden mt-1 border border-medical-100">
+                        <div className={`h-full rounded-full transition-all duration-300 ${tab.progress >= 80 ? 'bg-gradient-to-r from-health-400 to-health-600' : 'bg-gradient-to-r from-medical-400 to-health-500'}`} style={{ width: `${tab.progress}%` }} />
                       </div>
                     )}
                     {activeMainTab === tab.id && (
@@ -1186,57 +1552,77 @@
           </header>
 
           {/* Main Content */}
-          <main id="main-content" className="max-w-4xl mx-auto px-4 mt-8">
-            <div className="animate-fade-in">
+          <main id="main-content" className="max-w-4xl mx-auto px-4 mt-6 sm:mt-8">
+            <div key={activeMainTab} className="animate-fade-in">
               {activeMainTab === 'tienCan' && (
                 <>
-                  <ProgressBar percentage={tabProgress.tienCan} label="Tiến độ hoàn thành Tiền căn" />
+                  <ProgressBar percentage={tabProgress.tienCan} label="Tiến độ hoàn thành Tiền căn" stepLabel="Bước 1/5" />
                   <TienCanTab formData={formData} updateField={updateField} />
+                </>
+              )}
+              {activeMainTab === 'benhSu' && (
+                <>
+                  <ProgressBar percentage={tabProgress.benhSu} label="Tiến độ hoàn thành Bệnh sử" stepLabel="Bước 2/5" />
+                  <BenhSuTab formData={formData} updateField={updateField} />
                 </>
               )}
               {activeMainTab === 'kham' && (
                 <>
-                  <ProgressBar percentage={tabProgress.kham} label="Tiến độ hoàn thành Khám" />
+                  <ProgressBar percentage={tabProgress.kham} label="Tiến độ hoàn thành Khám" stepLabel="Bước 3/5" />
                   <KhamTab formData={formData} updateField={updateField} caputeScores={caputeScores} />
                 </>
               )}
               {activeMainTab === 'chiDinh' && (
                 <>
-                  <ProgressBar percentage={tabProgress.chiDinh} label="Tiến độ hoàn thành Chỉ định" />
+                  <ProgressBar percentage={tabProgress.chiDinh} label="Tiến độ hoàn thành Chỉ định" stepLabel="Bước 4/5" />
                   <ChiDinhTab formData={formData} updateField={updateField} />
                 </>
               )}
               {activeMainTab === 'ketQua' && (
                 <>
-                  <ProgressBar percentage={tabProgress.ketQua} label="Tiến độ hoàn thành Kết quả khám" />
+                  <ProgressBar percentage={tabProgress.ketQua} label="Tiến độ hoàn thành Kết quả khám" stepLabel="Bước 5/5" />
                   <KetQuaKhamTab formData={formData} updateField={updateField} />
                 </>
               )}
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                <p className="text-sm text-medical-500">Ctrl+1-5 để chuyển tab nhanh. Dữ liệu được lưu tự động trên máy này.</p>
+                {nextTab ? (
+                  <button onClick={goToNextTab} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white text-medical-700 border border-medical-200 hover:border-medical-400 hover:bg-medical-50 shadow-card font-semibold transition-all duration-200 min-h-[44px]">
+                    Tiếp tục: {nextTab.label}
+                    <span className="-rotate-90">{Icons.chevronDown}</span>
+                  </button>
+                ) : (
+                  <button onClick={handleGenerateOutput} disabled={isGenerating} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-gradient-to-r from-medical-500 to-health-500 text-white shadow-medical hover:shadow-medical-lg font-semibold transition-all duration-200 disabled:opacity-70 disabled:cursor-wait min-h-[44px]">
+                    {Icons.sparkles}
+                    {isGenerating ? 'Đang tạo...' : 'Tạo kết quả'}
+                  </button>
+                )}
+              </div>
             </div>
           </main>
 
           {/* Output Modal */}
           {showOutput && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setShowOutput(false)}>
-              <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-gradient-to-r from-medical-500 via-medical-600 to-health-500 px-6 py-5 flex items-center justify-between">
+              <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-gradient-to-r from-medical-500 via-medical-600 to-health-500 px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
                   <h2 className="font-heading text-xl font-bold text-white flex items-center gap-3">
                     {Icons.document}
                     Kết quả Thăm khám
                   </h2>
-                  <button onClick={() => setShowOutput(false)} aria-label="Đóng" className="w-10 h-10 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200">
+                  <button onClick={() => setShowOutput(false)} aria-label="Đóng" className="w-10 h-10 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all duration-200">
                     {Icons.x}
                   </button>
                 </div>
-                <div className="p-6 overflow-y-auto max-h-[60vh] bg-gradient-to-b from-medical-50/50 to-white">
-                  <pre className="whitespace-pre-wrap font-body text-sm text-medical-800 leading-relaxed bg-white p-5 rounded-2xl border border-medical-100 shadow-inner">{outputText}</pre>
+                <div className="p-4 sm:p-5 overflow-y-auto max-h-[60vh] bg-gradient-to-b from-medical-50/50 to-white">
+                  <textarea value={outputText} onChange={(e) => setOutputText(e.target.value)} className="w-full whitespace-pre-wrap font-body text-sm text-medical-800 leading-relaxed bg-white p-4 rounded-lg border border-medical-100 shadow-inner min-h-[320px] resize-y focus:border-medical-400 focus:ring-2 focus:ring-medical-100" spellCheck="false" aria-label="Kết quả thăm khám - có thể chỉnh sửa" />
                 </div>
-                <div className="px-6 py-4 bg-medical-50 border-t border-medical-100 flex flex-wrap gap-3 justify-end">
-                  <button onClick={copyToClipboard} className="flex items-center gap-2 px-5 py-3 bg-white text-medical-700 rounded-xl hover:bg-medical-100 transition-all duration-200 border-2 border-medical-200 hover:border-medical-300 font-medium min-h-[48px]">
+                <div className="px-5 sm:px-6 py-4 bg-medical-50 border-t border-medical-100 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                  <button onClick={copyToClipboard} className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-white text-medical-700 rounded-lg hover:bg-medical-100 transition-all duration-200 border border-medical-200 hover:border-medical-300 font-medium min-h-[48px]">
                     {Icons.copy}
                     Sao chép
                   </button>
-                  <button onClick={exportToWord} className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-health-500 to-health-600 text-white rounded-xl hover:from-health-600 hover:to-health-700 transition-all duration-200 shadow-medical hover:shadow-medical-lg font-semibold min-h-[48px]">
+                  <button onClick={exportToWord} className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-health-500 to-health-600 text-white rounded-lg hover:from-health-600 hover:to-health-700 transition-all duration-200 shadow-medical hover:shadow-medical-lg font-semibold min-h-[48px]">
                     {Icons.download}
                     Tải Word
                   </button>
@@ -1245,10 +1631,35 @@
             </div>
           )}
 
+          {showResetConfirm && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setShowResetConfirm(false)}>
+              <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="reset-title">
+                <div className="p-6">
+                  <div className="w-12 h-12 rounded-lg bg-warning-100 text-warning-700 flex items-center justify-center mb-4">
+                    {Icons.warning}
+                  </div>
+                  <h2 id="reset-title" className="font-heading text-xl font-bold text-medical-800 mb-2">Xóa dữ liệu đã nhập?</h2>
+                  <p className="text-medical-600 leading-relaxed">Thao tác này sẽ xóa dữ liệu trong form và bản lưu tự động trên máy này.</p>
+                </div>
+                <div className="px-6 py-4 bg-medical-50 border-t border-medical-100 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                  <button onClick={() => setShowResetConfirm(false)} className="w-full sm:w-auto px-5 py-3 rounded-lg bg-white text-medical-700 border border-medical-200 hover:border-medical-300 font-semibold min-h-[44px]">Giữ lại</button>
+                  <button onClick={resetForm} className="w-full sm:w-auto px-5 py-3 rounded-lg bg-red-600 text-white hover:bg-red-700 font-semibold shadow-card min-h-[44px]">Xóa dữ liệu</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {toast && (
+            <div className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-[60] flex items-center gap-3 rounded-lg border px-4 py-3 shadow-medical-lg animate-slide-up ${toast.type === 'warning' ? 'bg-warning-50 border-warning-200 text-warning-700' : 'bg-white border-health-200 text-health-700'}`} role="status" aria-live="polite">
+              <span>{toast.type === 'warning' ? Icons.warning : Icons.checkCircle}</span>
+              <span className="font-semibold text-sm">{toast.message}</span>
+            </div>
+          )}
+
           {/* Footer */}
           <footer className="mt-12 text-center text-sm text-medical-500 pb-4">
-            <p>Phiên bản 3.6 • Keyboard Shortcuts + UI/UX Optimized</p>
-            <p className="text-xs mt-1 text-medical-400">Nhấn phím số (1-9) để chọn nhanh đáp án • Tab để chuyển câu hỏi</p>
+            <p>Phiên bản 3.7 • 5 tabs + ATEC + Điều trị tái cấu trúc</p>
+            <p className="text-xs mt-1 text-medical-400">Nhấn phím số (1-9) để chọn nhanh đáp án • Tab để chuyển câu hỏi • Ctrl+1-5 để chuyển tab</p>
           </footer>
         </div>
       );
